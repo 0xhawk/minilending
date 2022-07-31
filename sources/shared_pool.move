@@ -8,6 +8,7 @@ module sibylla::shared_pool {
     const EZERO_AMOUNT: u64 = 0;
     const ENOT_INITIALIZED: u64 = 1;
     const EALREADY_LISTED: u64 = 2;
+    const ENOT_ENOUGH: u64 = 3;
 
     struct Pool<phantom T> has key {
         coin: coin::Coin<T>
@@ -32,12 +33,25 @@ module sibylla::shared_pool {
             move_to(account, pool);
         };
         
-        collateral_coin::mint<T>(account, dest_addr, amount);
+        collateral_coin::mint<T>(account, amount);
     }
 
     public fun deposited_value<T>(owner: address): u64 acquires Pool {
         let coin = &borrow_global<Pool<T>>(owner).coin;
         coin::value(coin)
+    }
+
+    public fun withdraw<T>(account: &signer, amount: u64) acquires Pool {
+        assert!(amount > 0, EZERO_AMOUNT);
+
+        let dest_addr = signer::address_of(account);
+        let pool_ref = borrow_global_mut<Pool<T>>(dest_addr);
+        assert!(coin::value<T>(&pool_ref.coin) >= amount, ENOT_ENOUGH);
+
+        let deposited = coin::extract(&mut pool_ref.coin, amount);
+        coin::deposit<T>(dest_addr, deposited);
+
+        collateral_coin::burn<T>(account, amount);
     }
 
     #[test_only]
@@ -71,6 +85,16 @@ module sibylla::shared_pool {
         deposit<TestCoin>(&user1, 30);
         assert!(coin::balance<TestCoin>(user_addr) == 70, 2);
         assert!(collateral_coin::balance<TestCoin>(user_addr) == 30, 3);
-        assert!(deposited_value<TestCoin>(user_addr) == 30, 2);
+        assert!(deposited_value<TestCoin>(user_addr) == 30, 4);
+
+        deposit<TestCoin>(&user1, 10);
+        assert!(coin::balance<TestCoin>(user_addr) == 60, 5);
+        assert!(collateral_coin::balance<TestCoin>(user_addr) == 40, 6);
+        assert!(deposited_value<TestCoin>(user_addr) == 40, 7);
+
+        withdraw<TestCoin>(&user1, 40);
+        assert!(coin::balance<TestCoin>(user_addr) == 100, 8);
+        assert!(collateral_coin::balance<TestCoin>(user_addr) == 0, 9);
+        assert!(deposited_value<TestCoin>(user_addr) == 0, 10);
     }
 }
