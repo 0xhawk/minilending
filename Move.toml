@@ -1,10 +1,10 @@
 [package]
 name = "MiniLending"
-version = "0.0.1"
+version = "0.0.0"
 
 [dependencies]
-AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "main" }
-MoveNursery = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/nursery/", rev = "main" }
+AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "2d78d40cf877dd0e67be4bca66907f271e0a11bf" }
 
 [addresses]
-SampleStaking = "0x1"
+HandsonSecond="0xfbd6fbf6fd3d3cda4d65c59de97900a4797a37419298aa4a5eeacda77b34e691"
+sibylla="0xfbd6fbf6fd3d3cda4d65c59de97900a4797a37419298aa4a5eeacda77b34e691"
