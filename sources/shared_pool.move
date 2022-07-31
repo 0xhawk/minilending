@@ -55,7 +55,8 @@ module sibylla::shared_pool {
     }
 
     #[test_only]
-    struct TestCoin {}
+    struct CoinA {}
+    struct CoinB {}
 
     #[test_only]
     use aptos_framework::managed_coin;
@@ -63,38 +64,60 @@ module sibylla::shared_pool {
     #[test(source=@0xfbd6fbf6fd3d3cda4d65c59de97900a4797a37419298aa4a5eeacda77b34e691, user1 = @0x1)]
     public entry fun test_end_to_end(source: signer, user1: signer) acquires Pool {
         
-        managed_coin::initialize<TestCoin>(
+        managed_coin::initialize<CoinA>(
             &source,
-            b"TestCoin",
-            b"TEST",
+            b"CoinA",
+            b"AAA",
             18,
             true
         );
-        assert!(coin::is_coin_initialized<TestCoin>(), 0);
-        
-        managed_coin::register<TestCoin>(&source);
-        managed_coin::register<TestCoin>(&user1);
-        list_new_coin<TestCoin>(&source);
+        assert!(coin::is_coin_initialized<CoinA>(), 0);
+        managed_coin::register<CoinA>(&source);
+        managed_coin::register<CoinA>(&user1);
+
+        managed_coin::initialize<CoinB>(
+            &source,
+            b"CoinB",
+            b"BBB",
+            18,
+            true
+        );
+        assert!(coin::is_coin_initialized<CoinB>(), 0);
+        managed_coin::register<CoinB>(&source);
+        managed_coin::register<CoinB>(&user1);
+
+        list_new_coin<CoinA>(&source);
+        list_new_coin<CoinB>(&source);
 
         let source_addr = signer::address_of(&source);
         let user_addr = signer::address_of(&user1);
-        managed_coin::mint<TestCoin>(&source, user_addr, 100);
-        assert!(coin::balance<TestCoin>(user_addr) == 100, 0);
-        assert!(coin::balance<TestCoin>(source_addr) == 0, 1);
 
-        deposit<TestCoin>(&user1, 30);
-        assert!(coin::balance<TestCoin>(user_addr) == 70, 2);
-        assert!(collateral_coin::balance<TestCoin>(user_addr) == 30, 3);
-        assert!(deposited_value<TestCoin>(user_addr) == 30, 4);
+        managed_coin::mint<CoinA>(&source, user_addr, 100);
+        assert!(coin::balance<CoinA>(user_addr) == 100, 0);
+        assert!(coin::balance<CoinA>(source_addr) == 0, 0);
 
-        deposit<TestCoin>(&user1, 10);
-        assert!(coin::balance<TestCoin>(user_addr) == 60, 5);
-        assert!(collateral_coin::balance<TestCoin>(user_addr) == 40, 6);
-        assert!(deposited_value<TestCoin>(user_addr) == 40, 7);
+        managed_coin::mint<CoinB>(&source, user_addr, 100);
+        assert!(coin::balance<CoinB>(user_addr) == 100, 0);
 
-        withdraw<TestCoin>(&user1, 40);
-        assert!(coin::balance<TestCoin>(user_addr) == 100, 8);
-        assert!(collateral_coin::balance<TestCoin>(user_addr) == 0, 9);
-        assert!(deposited_value<TestCoin>(user_addr) == 0, 10);
+        deposit<CoinA>(&user1, 30);
+        assert!(coin::balance<CoinA>(user_addr) == 70, 0);
+        assert!(collateral_coin::balance<CoinA>(user_addr) == 30, 0);
+        assert!(deposited_value<CoinA>(user_addr) == 30, 0);
+
+        deposit<CoinA>(&user1, 10);
+        assert!(coin::balance<CoinA>(user_addr) == 60, 0);
+        assert!(collateral_coin::balance<CoinA>(user_addr) == 40, 0);
+        assert!(deposited_value<CoinA>(user_addr) == 40, 0);
+
+        deposit<CoinB>(&user1, 70);
+        assert!(coin::balance<CoinB>(user_addr) == 30, 0);
+        assert!(collateral_coin::balance<CoinB>(user_addr) == 70, 0);
+        assert!(deposited_value<CoinB>(user_addr) == 70, 0);
+
+        withdraw<CoinA>(&user1, 40);
+        assert!(coin::balance<CoinA>(user_addr) == 100, 0);
+        assert!(collateral_coin::balance<CoinA>(user_addr) == 0, 0);
+        assert!(deposited_value<CoinA>(user_addr) == 0, 0);
+        assert!(deposited_value<CoinB>(user_addr) == 70, 0);
     }
 }
