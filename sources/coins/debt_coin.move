@@ -5,7 +5,7 @@ module leizd::debt_coin {
     use aptos_std::type_info;
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability};
     
-    friend leizd::shared_pool;
+    friend leizd::asset_pool;
 
     struct Debt<phantom T> {
         borrowed_coin: Coin<T>

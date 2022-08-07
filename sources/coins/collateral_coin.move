@@ -5,7 +5,9 @@ module leizd::collateral_coin {
     use aptos_std::type_info;
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability};
     
-    friend leizd::shared_pool;
+    friend leizd::asset_pool;
+    friend leizd::bridge_pool;
+    friend leizd::bridge_coin_factory;
 
     struct Collateral<phantom T> {
         deposited_coin: Coin<T>

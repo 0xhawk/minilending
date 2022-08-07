@@ -1,4 +1,4 @@
-module leizd::shared_pool {
+module leizd::asset_pool {
 
     use std::debug;
     use std::signer;
@@ -6,6 +6,7 @@ module leizd::shared_pool {
     use leizd::collateral_coin;
     use leizd::debt_coin;
     use leizd::price_oracle;
+    use leizd::bridge_pool;
 
     const EZERO_AMOUNT: u64 = 0;
     const ENOT_INITIALIZED: u64 = 1;
@@ -16,12 +17,13 @@ module leizd::shared_pool {
         coin: coin::Coin<T>
     }
 
-    public entry fun list_new_coin<T>(account: &signer) {
+    public entry fun list_new_coin<T>(owner: &signer) {
         assert!(coin::is_coin_initialized<T>(), ENOT_INITIALIZED);
         assert!(!collateral_coin::is_coin_initialized<T>(), EALREADY_LISTED);
-        collateral_coin::initialize<T>(account);
-        debt_coin::initialize<T>(account);
-        move_to(account, Pool<T> {coin: coin::zero<T>()});
+        collateral_coin::initialize<T>(owner);
+        debt_coin::initialize<T>(owner);
+        bridge_pool::initialize<T>(owner);
+        move_to(owner, Pool<T> {coin: coin::zero<T>()});
     }
 
     public entry fun deposit<T>(account: &signer, amount: u64) acquires Pool {
@@ -34,7 +36,7 @@ module leizd::shared_pool {
         collateral_coin::mint<T>(account, amount);
     }
 
-    public fun deposited_value<T>(): u64 acquires Pool {
+    public fun balance<T>(): u64 acquires Pool {
         let coin = &borrow_global<Pool<T>>(@leizd).coin;
         coin::value(coin)
     }
@@ -114,23 +116,23 @@ module leizd::shared_pool {
         deposit<CoinA>(&user1, 30);
         assert!(coin::balance<CoinA>(user_addr) == 70, 0);
         assert!(collateral_coin::balance<CoinA>(user_addr) == 30, 0);
-        assert!(deposited_value<CoinA>() == 30, 0);
+        assert!(balance<CoinA>() == 30, 0);
 
         deposit<CoinA>(&user1, 10);
         assert!(coin::balance<CoinA>(user_addr) == 60, 0);
         assert!(collateral_coin::balance<CoinA>(user_addr) == 40, 0);
-        assert!(deposited_value<CoinA>() == 40, 0);
+        assert!(balance<CoinA>() == 40, 0);
 
         deposit<CoinB>(&user1, 70);
         assert!(coin::balance<CoinB>(user_addr) == 30, 0);
         assert!(collateral_coin::balance<CoinB>(user_addr) == 70, 0);
-        assert!(deposited_value<CoinB>() == 70, 0);
+        assert!(balance<CoinB>() == 70, 0);
 
         withdraw<CoinA>(&user1, 40);
         assert!(coin::balance<CoinA>(user_addr) == 100, 0);
         assert!(collateral_coin::balance<CoinA>(user_addr) == 0, 0);
-        assert!(deposited_value<CoinA>() == 0, 0);
-        assert!(deposited_value<CoinB>() == 70, 0);
+        assert!(balance<CoinA>() == 0, 0);
+        assert!(balance<CoinB>() == 70, 0);
     }
 
     #[test(source=@0xfbd6fbf6fd3d3cda4d65c59de97900a4797a37419298aa4a5eeacda77b34e691, user1 = @0x1, user2 = @0x2)]
