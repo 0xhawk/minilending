@@ -1,11 +1,11 @@
-module sibylla::shared_pool {
+module leizd::shared_pool {
 
     use std::debug;
     use std::signer;
     use aptos_framework::coin;
-    use sibylla::collateral_coin;
-    use sibylla::debt_coin;
-    use sibylla::price_oracle;
+    use leizd::collateral_coin;
+    use leizd::debt_coin;
+    use leizd::price_oracle;
 
     const EZERO_AMOUNT: u64 = 0;
     const ENOT_INITIALIZED: u64 = 1;
@@ -28,14 +28,14 @@ module sibylla::shared_pool {
         assert!(amount > 0, EZERO_AMOUNT);
 
         let withdrawed = coin::withdraw<T>(account, amount);
-        let coin_ref = &mut borrow_global_mut<Pool<T>>(@sibylla).coin;
+        let coin_ref = &mut borrow_global_mut<Pool<T>>(@leizd).coin;
         coin::merge(coin_ref, withdrawed);
     
         collateral_coin::mint<T>(account, amount);
     }
 
     public fun deposited_value<T>(): u64 acquires Pool {
-        let coin = &borrow_global<Pool<T>>(@sibylla).coin;
+        let coin = &borrow_global<Pool<T>>(@leizd).coin;
         coin::value(coin)
     }
 
@@ -43,7 +43,7 @@ module sibylla::shared_pool {
         assert!(amount > 0, EZERO_AMOUNT);
 
         let dest_addr = signer::address_of(account);
-        let pool_ref = borrow_global_mut<Pool<T>>(@sibylla);
+        let pool_ref = borrow_global_mut<Pool<T>>(@leizd);
         assert!(coin::value<T>(&pool_ref.coin) >= amount, ENOT_ENOUGH);
 
         let deposited = coin::extract(&mut pool_ref.coin, amount);
@@ -59,7 +59,7 @@ module sibylla::shared_pool {
         // TODO: validate health
 
         let dest_addr = signer::address_of(account);
-        let pool_ref = borrow_global_mut<Pool<T>>(@sibylla);
+        let pool_ref = borrow_global_mut<Pool<T>>(@leizd);
         let deposited = coin::extract(&mut pool_ref.coin, amount);
         coin::deposit<T>(dest_addr, deposited);
 

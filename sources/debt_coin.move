@@ -1,11 +1,11 @@
-module sibylla::debt_coin {
+module leizd::debt_coin {
 
     use std::string;
     use std::signer;
     use aptos_std::type_info;
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability};
     
-    friend sibylla::shared_pool;
+    friend leizd::shared_pool;
 
     struct Debt<phantom T> {
         borrowed_coin: Coin<T>

@@ -1,10 +1,10 @@
-module sibylla::bridge_coin {
+module leizd::bridge_coin {
 
     use std::string;
     use aptos_std::signer;
     use aptos_framework::coin::{Self, MintCapability, BurnCapability};
 
-    friend sibylla::bridge_coin_factory;
+    friend leizd::bridge_coin_factory;
 
     struct BridgeCoin has key {
     }
@@ -30,7 +30,7 @@ module sibylla::bridge_coin {
 
     public(friend) fun mint(dest: &signer, amount: u64) acquires Capabilities {
         let dest_addr = signer::address_of(dest);
-        let caps = borrow_global<Capabilities<BridgeCoin>>(@sibylla);
+        let caps = borrow_global<Capabilities<BridgeCoin>>(@leizd);
         let coin_minted = coin::mint(amount, &caps.mint_cap);
         coin::deposit(dest_addr, coin_minted);
     }
