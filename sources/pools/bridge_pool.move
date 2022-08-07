@@ -29,6 +29,10 @@ module leizd::bridge_pool {
         collateral_coin::mint<BridgeCoin>(account, amount);
     }
 
+    public entry fun withdraw<T>() {
+        // TODO
+    }
+
     public entry fun borrow<T>(account: &signer, amount: u64) acquires BridgePool {
 
         let price = price_oracle::asset_price<T>();
