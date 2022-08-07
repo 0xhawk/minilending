@@ -5,6 +5,7 @@ module leizd::bridge_coin_factory {
     use aptos_framework::coin;
     use leizd::bridge_coin;
     use leizd::collateral_coin;
+    use leizd::debt_coin;
 
     const ENOT_PERMITED: u64 = 1;
 
@@ -19,6 +20,7 @@ module leizd::bridge_coin_factory {
     public entry fun initialize(owner: &signer) {
         bridge_coin::initialize(owner);
         collateral_coin::initialize<bridge_coin::BridgeCoin>(owner);
+        debt_coin::initialize<bridge_coin::BridgeCoin>(owner);
         move_to(owner, StableList { listed: simple_map::create<vector<u8>, bool>() });
     }
 

@@ -88,6 +88,32 @@ module leizd::integration {
         assert!(bridge_coin::balance(account1_addr) == 20, 0);
     }
 
+    #[test(owner=@leizd, account1=@0x1, account2=@0x2)]
+    public entry fun test_borrow_bridge_coin(owner: signer, account1: signer, account2: signer) {
+        init_usdc(&owner);
+        init_uni(&owner);
+        asset_pool::list_new_coin<USDC>(&owner);
+        asset_pool::list_new_coin<UNI>(&owner);
+        bridge_coin_factory::initialize(&owner);
+        bridge_coin_factory::init_pool<USDC>(&owner);
+
+        let account1_addr = signer::address_of(&account1);
+        let account2_addr = signer::address_of(&account2);
+        managed_coin::register<USDC>(&account1);
+        managed_coin::mint<USDC>(&owner, account1_addr, 100);
+        managed_coin::register<UNI>(&account2);
+        managed_coin::mint<UNI>(&owner, account2_addr, 100);
+        managed_coin::register<bridge_coin::BridgeCoin>(&account1);
+        managed_coin::register<bridge_coin::BridgeCoin>(&account2);
+
+        asset_pool::deposit<UNI>(&account2, 50);
+        bridge_coin_factory::deposit<USDC>(&account1, 50);
+        bridge_pool::deposit<UNI>(&account1, 30);
+
+        bridge_pool::borrow<UNI>(&account2, 10);
+        assert!(bridge_coin::balance(account2_addr) == 10, 0);
+    }
+
     fun init_usdc(account: &signer) {
         init_coin<USDC>(account, b"USDC", 6);
     }

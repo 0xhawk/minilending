@@ -6,6 +6,8 @@ module leizd::debt_coin {
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability};
     
     friend leizd::asset_pool;
+    friend leizd::bridge_pool;
+    friend leizd::bridge_coin_factory;
 
     struct Debt<phantom T> {
         borrowed_coin: Coin<T>
