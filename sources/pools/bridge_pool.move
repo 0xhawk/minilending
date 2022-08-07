@@ -47,6 +47,10 @@ module leizd::bridge_pool {
         debt_coin::mint<BridgeCoin>(account, amount);
     }
 
+    public entry fun repay<T>() {
+        // TODO
+    }
+
     public fun balance<T>(): u64 acquires BridgePool {
         let coin = &borrow_global<BridgePool<T>>(@leizd).coin;
         coin::value(coin)

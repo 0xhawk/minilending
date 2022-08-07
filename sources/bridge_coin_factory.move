@@ -42,6 +42,10 @@ module leizd::bridge_coin_factory {
         bridge_coin::mint(account, amount);
     }
 
+    public entry fun withdraw<T>() {
+        // TODO
+    }
+
     fun is_stable<T>(): bool acquires StableList {
         let type_info = type_info::type_of<T>();
         let coin_name = type_info::module_name(&type_info);

@@ -52,4 +52,8 @@ module leizd::debt_coin {
         let coin_minted = coin::mint(amount, &caps.mint_cap);
         coin::deposit(dest_addr, coin_minted);
     }
+
+    public(friend) fun burn<T>() {
+        // TODO
+    }
 }

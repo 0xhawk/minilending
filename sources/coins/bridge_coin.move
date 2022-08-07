@@ -38,6 +38,10 @@ module leizd::bridge_coin {
         coin::deposit(dest_addr, coin_minted);
     }
 
+    public(friend) fun burn() {
+        // TODO
+    }
+
     public fun balance(owner: address): u64 {
         coin::balance<BridgeCoin>(owner)
     }

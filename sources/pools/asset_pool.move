@@ -7,6 +7,7 @@ module leizd::asset_pool {
     use leizd::debt_coin;
     use leizd::price_oracle;
     use leizd::bridge_pool;
+    use leizd::reserve_data;
 
     const EZERO_AMOUNT: u64 = 0;
     const ENOT_INITIALIZED: u64 = 1;
@@ -24,6 +25,7 @@ module leizd::asset_pool {
         collateral_coin::initialize<T>(owner);
         debt_coin::initialize<T>(owner);
         bridge_pool::initialize<T>(owner);
+        reserve_data::initialize<T>(owner);
         move_to(owner, Pool<T> {coin: coin::zero<T>()});
     }
 
@@ -71,7 +73,7 @@ module leizd::asset_pool {
         debt_coin::mint<T2>(account, amount);
     }
 
-    public fun repay<T>() {
+    public fun repay<T1,T2>() {
         // TODO
     }
 
