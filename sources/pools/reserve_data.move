@@ -24,6 +24,14 @@ module leizd::reserve_data {
         borrow_global<ReserveData<T>>(@leizd).ltv
     }
 
+    public fun reserve_factor<T>(): u64 acquires ReserveData {
+        borrow_global<ReserveData<T>>(@leizd).reserve_factor
+    }
+
+    public fun is_active<T>(): bool acquires ReserveData {
+        borrow_global<ReserveData<T>>(@leizd).is_active
+    }
+
     public fun default_reserve_data<T>(): ReserveData<T> {
         ReserveData<T> {
             ltv: 80,

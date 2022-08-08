@@ -13,6 +13,7 @@ module leizd::asset_pool {
     const ENOT_INITIALIZED: u64 = 1;
     const EALREADY_LISTED: u64 = 2;
     const ENOT_ENOUGH: u64 = 3;
+    const ENOT_POOL_IS_INACTIVE: u64 = 4;
 
     struct Pool<phantom T> has key {
         coin: coin::Coin<T>
@@ -31,6 +32,10 @@ module leizd::asset_pool {
 
     public entry fun deposit<T>(account: &signer, amount: u64) acquires Pool {
         assert!(amount > 0, EZERO_AMOUNT);
+        assert!(reserve_data::is_active<T>(), ENOT_POOL_IS_INACTIVE);
+
+        // TODO: update state
+        // TODO: update interest rates
 
         let withdrawed = coin::withdraw<T>(account, amount);
         let coin_ref = &mut borrow_global_mut<Pool<T>>(@leizd).coin;
@@ -52,29 +57,37 @@ module leizd::asset_pool {
         collateral_coin::burn<T>(account, amount);
     }
 
-    public fun borrow<T1,T2>(account: &signer, amount: u64) acquires Pool {
+    public fun borrow<C,D>(account: &signer, amount: u64) acquires Pool {
         
-        let price = price_oracle::asset_price<T1>();
+        let price = price_oracle::asset_price<C>();
         debug::print(&price);
         // TODO: validate health
 
         let dest_addr = signer::address_of(account);
         
         // borrow bridge coin
-        bridge_pool::borrow<T1>(account, amount);
+        bridge_pool::borrow<C>(account, amount);
 
         // deposit bridge coin
-        bridge_pool::deposit<T2>(account, amount);
+        bridge_pool::deposit<D>(account, amount);
 
-        let pool_ref = borrow_global_mut<Pool<T2>>(@leizd);
+        let pool_ref = borrow_global_mut<Pool<D>>(@leizd);
         let deposited = coin::extract(&mut pool_ref.coin, amount);
-        coin::deposit<T2>(dest_addr, deposited);
+        coin::deposit<D>(dest_addr, deposited);
 
-        debt_coin::mint<T2>(account, amount);
+        debt_coin::mint<D>(account, amount);
     }
 
-    public fun repay<T1,T2>() {
-        // TODO
+    public fun repay<C,D>(account: &signer, amount: u64) acquires Pool {
+
+        let withdrawed = coin::withdraw<D>(account, amount);
+        let coin_ref = &mut borrow_global_mut<Pool<D>>(@leizd).coin;
+        coin::merge(coin_ref, withdrawed);
+
+        bridge_pool::borrow<D>(account, amount);
+        bridge_pool::deposit<C>(account, amount);
+
+        debt_coin::burn<D>(account, amount);
     }
 
     public fun balance<T>(): u64 acquires Pool {

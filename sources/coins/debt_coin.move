@@ -2,7 +2,6 @@ module leizd::debt_coin {
 
     use std::string;
     use std::signer;
-    use aptos_std::type_info;
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability};
     
     friend leizd::asset_pool;
@@ -39,21 +38,24 @@ module leizd::debt_coin {
         })
     }
 
-    public(friend) fun mint<T>(dest: &signer, amount: u64) acquires Capabilities {
-        let type_info = type_info::type_of<T>();
-        let coin_owner = type_info::account_address(&type_info);
-        let caps = borrow_global<Capabilities<Debt<T>>>(coin_owner);
-
-        let dest_addr = signer::address_of(dest);
-        if (!coin::is_account_registered<Debt<T>>(dest_addr)) {
-            coin::register<Debt<T>>(dest);
+    public(friend) fun mint<T>(account: &signer, amount: u64) acquires Capabilities {
+        let caps = borrow_global<Capabilities<Debt<T>>>(@leizd);
+        let account_addr = signer::address_of(account);
+        if (!coin::is_account_registered<Debt<T>>(account_addr)) {
+            coin::register<Debt<T>>(account);
         };
 
         let coin_minted = coin::mint(amount, &caps.mint_cap);
-        coin::deposit(dest_addr, coin_minted);
+        coin::deposit(account_addr, coin_minted);
     }
 
-    public(friend) fun burn<T>() {
-        // TODO
+    public(friend) fun burn<T>(account: &signer, amount: u64) acquires Capabilities {
+        let caps = borrow_global<Capabilities<Debt<T>>>(@leizd);
+        let coin_burned = coin::withdraw<Debt<T>>(account, amount);
+        coin::burn(coin_burned, &caps.burn_cap);
+    }
+
+    public fun balance<T>(owner: address): u64 {
+        coin::balance<Debt<T>>(owner)
     }
 }

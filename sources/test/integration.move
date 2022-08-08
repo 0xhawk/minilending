@@ -14,6 +14,7 @@ module leizd::integration {
     use leizd::bridge_coin;
     use leizd::bridge_pool;
     use leizd::collateral_coin;
+    use leizd::debt_coin;
 
     #[test(owner=@leizd)]
     public entry fun test_init_by_owner(owner: signer) {
@@ -145,8 +146,45 @@ module leizd::integration {
         bridge_pool::deposit<WETH>(&account1, 30);
 
         // WETH -> UNI
-        asset_pool::borrow<WETH, UNI>(&account2, 10);
+        asset_pool::borrow<WETH,UNI>(&account2, 10);
         assert!(coin::balance<UNI>(account2_addr) == 60, 0);
+        assert!(debt_coin::balance<UNI>(account2_addr) == 10, 0);
+    }
+
+    #[test(owner=@leizd, account1=@0x1, account2=@0x2)]
+    public entry fun test_repay_uni_for_weth(owner: signer, account1: signer, account2: signer) {
+        init_usdc(&owner);
+        init_uni(&owner);
+        init_weth(&owner);
+        asset_pool::list_new_coin<USDC>(&owner);
+        asset_pool::list_new_coin<UNI>(&owner);
+        asset_pool::list_new_coin<WETH>(&owner);
+        bridge_coin_factory::initialize(&owner);
+        bridge_coin_factory::init_pool<USDC>(&owner);
+
+        let account1_addr = signer::address_of(&account1);
+        let account2_addr = signer::address_of(&account2);
+        managed_coin::register<USDC>(&account1);
+        managed_coin::mint<USDC>(&owner, account1_addr, 100);
+        managed_coin::register<WETH>(&account1);
+        managed_coin::mint<WETH>(&owner, account1_addr, 100);
+        managed_coin::register<UNI>(&account2);
+        managed_coin::mint<UNI>(&owner, account2_addr, 100);
+        managed_coin::register<WETH>(&account2);
+        managed_coin::mint<WETH>(&owner, account2_addr, 100);
+        managed_coin::register<bridge_coin::BridgeCoin>(&account1);
+        managed_coin::register<bridge_coin::BridgeCoin>(&account2);
+
+        asset_pool::deposit<UNI>(&account2, 50);
+        asset_pool::deposit<WETH>(&account1, 50);
+        bridge_coin_factory::deposit<USDC>(&account1, 80);
+        bridge_pool::deposit<UNI>(&account1, 30);
+        bridge_pool::deposit<WETH>(&account1, 30);
+        asset_pool::borrow<WETH,UNI>(&account2, 10);
+
+        asset_pool::repay<WETH,UNI>(&account2, 10);
+        assert!(coin::balance<UNI>(account2_addr) == 50, 0);
+        assert!(debt_coin::balance<UNI>(account2_addr) == 0, 0);
     }
 
     fun init_usdc(account: &signer) {
