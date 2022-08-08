@@ -61,6 +61,7 @@ module leizd::integration {
         bridge_coin_factory::deposit<USDC>(&account1, 10);
         assert!(coin::balance<USDC>(account1_addr) == 90, 0);
         assert!(bridge_coin_factory::balance<USDC>() == 10, 0);
+        assert!(bridge_coin_factory::balance_of<USDC>(account1_addr) == 10, 0);
         assert!(bridge_coin::balance(account1_addr) == 10, 0);
     }
 
@@ -87,6 +88,30 @@ module leizd::integration {
         assert!(bridge_pool::balance<USDC>() == 10, 0);
         assert!(bridge_pool::balance<UNI>() == 0, 0);
         assert!(bridge_coin::balance(account1_addr) == 20, 0);
+    }
+
+    #[test(owner=@leizd, account1=@0x1, account2=@0x2)]
+    public entry fun test_withdraw_bridge_coin(owner: signer, account1: signer, account2: signer) {
+        init_usdc(&owner);
+        init_uni(&owner);
+        asset_pool::list_new_coin<USDC>(&owner);
+        asset_pool::list_new_coin<UNI>(&owner);
+        bridge_coin_factory::initialize(&owner);
+        bridge_coin_factory::init_pool<USDC>(&owner);
+
+        let account1_addr = signer::address_of(&account1);
+        let account2_addr = signer::address_of(&account2);
+        managed_coin::register<USDC>(&account1);
+        managed_coin::mint<USDC>(&owner, account1_addr, 100);
+        managed_coin::register<UNI>(&account2);
+        managed_coin::mint<UNI>(&owner, account2_addr, 100);
+
+        asset_pool::deposit<UNI>(&account2, 10);
+        bridge_coin_factory::deposit<USDC>(&account1, 30);
+        bridge_pool::deposit<USDC>(&account1, 10);
+
+        bridge_pool::withdraw<USDC>(&account1, 10);
+        assert!(bridge_pool::balance<USDC>() == 0, 0);
     }
 
     #[test(owner=@leizd, account1=@0x1, account2=@0x2)]

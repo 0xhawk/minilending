@@ -10,6 +10,7 @@ module leizd::bridge_pool {
     friend leizd::asset_pool;
 
     const EZERO_AMOUNT: u64 = 0;
+    const ENOT_ENOUGH: u64 = 3;
 
     struct BridgePool<phantom T> has key {
         coin: coin::Coin<BridgeCoin>
@@ -29,8 +30,17 @@ module leizd::bridge_pool {
         collateral_coin::mint<BridgeCoin>(account, amount);
     }
 
-    public entry fun withdraw<T>() {
-        // TODO
+    public entry fun withdraw<T>(account: &signer, amount: u64) acquires BridgePool {
+        assert!(amount > 0, EZERO_AMOUNT);
+
+        let account_addr = signer::address_of(account);
+        let pool_ref = borrow_global_mut<BridgePool<T>>(@leizd);
+        assert!(coin::value<BridgeCoin>(&pool_ref.coin) >= amount, ENOT_ENOUGH);
+
+        let deposited = coin::extract(&mut pool_ref.coin, amount);
+        coin::deposit<BridgeCoin>(account_addr, deposited);
+
+        collateral_coin::burn<BridgeCoin>(account, amount);
     }
 
     public entry fun borrow<T>(account: &signer, amount: u64) acquires BridgePool {

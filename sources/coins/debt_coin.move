@@ -55,6 +55,10 @@ module leizd::debt_coin {
         coin::burn(coin_burned, &caps.burn_cap);
     }
 
+    public fun is_coin_initialized<T>(): bool {
+        coin::is_coin_initialized<Debt<T>>()
+    }
+
     public fun balance<T>(owner: address): u64 {
         coin::balance<Debt<T>>(owner)
     }

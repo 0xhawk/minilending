@@ -38,8 +38,10 @@ module leizd::bridge_coin {
         coin::deposit(dest_addr, coin_minted);
     }
 
-    public(friend) fun burn() {
-        // TODO
+    public(friend) fun burn(account: &signer, amount: u64) acquires Capabilities {
+        let caps = borrow_global<Capabilities<BridgeCoin>>(@leizd);
+        let coin_burned = coin::withdraw<BridgeCoin>(account, amount);
+        coin::burn(coin_burned, &caps.burn_cap);
     }
 
     public fun balance(owner: address): u64 {

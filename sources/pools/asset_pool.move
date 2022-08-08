@@ -22,6 +22,7 @@ module leizd::asset_pool {
     public entry fun list_new_coin<T>(owner: &signer) {
         assert!(coin::is_coin_initialized<T>(), ENOT_INITIALIZED);
         assert!(!collateral_coin::is_coin_initialized<T>(), EALREADY_LISTED);
+        assert!(!debt_coin::is_coin_initialized<T>(), EALREADY_LISTED);
         
         collateral_coin::initialize<T>(owner);
         debt_coin::initialize<T>(owner);
@@ -47,12 +48,12 @@ module leizd::asset_pool {
     public fun withdraw<T>(account: &signer, amount: u64) acquires Pool {
         assert!(amount > 0, EZERO_AMOUNT);
 
-        let dest_addr = signer::address_of(account);
+        let account_addr = signer::address_of(account);
         let pool_ref = borrow_global_mut<Pool<T>>(@leizd);
         assert!(coin::value<T>(&pool_ref.coin) >= amount, ENOT_ENOUGH);
 
         let deposited = coin::extract(&mut pool_ref.coin, amount);
-        coin::deposit<T>(dest_addr, deposited);
+        coin::deposit<T>(account_addr, deposited);
 
         collateral_coin::burn<T>(account, amount);
     }
