@@ -11,10 +11,12 @@ module leizd::vault {
     const EALREADY_INITIALIZED: u64 = 1;
     const EZERO_AMOUNT: u64 = 2;
     const ENOT_ENOUGH: u64 = 3;
+    const EDISABLED_COIN: u64 = 4;
 
     struct Vault<phantom T> has key {
         coin: coin::Coin<T>,
-        map: simple_map::SimpleMap<address,u64>
+        map: simple_map::SimpleMap<address,u64>,
+        active: bool
     }
 
     public entry fun initialize(owner: &signer) {
@@ -23,16 +25,23 @@ module leizd::vault {
         debt_coin::initialize<zusd::ZUSD>(owner);
     }
 
-    public entry fun add_coin_type<T>(owner: &signer) {
+    public entry fun activate_coin<T>(owner: &signer) {
         assert!(!exists<Vault<T>>(@leizd), EALREADY_INITIALIZED);
-        move_to(owner, Vault<T> { coin: coin::zero<T>(), map: simple_map::create<address,u64>() });
+        move_to(owner, Vault<T> { coin: coin::zero<T>(), map: simple_map::create<address,u64>(), active: true });
+    }
+
+    public entry fun disable_coin<T>(owner: &signer) acquires Vault {
+        let owner_addr = signer::address_of(owner);
+        let active = &mut borrow_global_mut<Vault<T>>(owner_addr).active;
+        *active = false;
     }
 
     public entry fun deposit<T>(account: &signer, amount: u64) acquires Vault {
         assert!(exists<Vault<T>>(@leizd), ENOT_PERMITED_COIN);
+        let pool = borrow_global_mut<Vault<T>>(@leizd);
+        assert!(pool.active, EDISABLED_COIN);
 
         let withdrawed = coin::withdraw<T>(account, amount);
-        let pool = borrow_global_mut<Vault<T>>(@leizd);
         coin::merge(&mut pool.coin, withdrawed);
 
         let account_addr = signer::address_of(account);

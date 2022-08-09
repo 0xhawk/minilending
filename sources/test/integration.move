@@ -52,7 +52,7 @@ module leizd::integration {
 
         // init bridge coin
         vault::initialize(&owner);
-        vault::add_coin_type<USDC>(&owner);
+        vault::activate_coin<USDC>(&owner);
 
         let account1_addr = signer::address_of(&account1);
         managed_coin::register<USDC>(&account1);
@@ -70,7 +70,7 @@ module leizd::integration {
         init_usdc(&owner);
 
         vault::initialize(&owner);
-        vault::add_coin_type<USDC>(&owner);
+        vault::activate_coin<USDC>(&owner);
 
         let account1_addr = signer::address_of(&account1);
         managed_coin::register<USDC>(&account1);
@@ -91,7 +91,7 @@ module leizd::integration {
         asset_pool::list_new_coin<USDC>(&owner);
         asset_pool::list_new_coin<UNI>(&owner);
         vault::initialize(&owner);
-        vault::add_coin_type<USDC>(&owner);
+        vault::activate_coin<USDC>(&owner);
 
         let account1_addr = signer::address_of(&account1);
         let account2_addr = signer::address_of(&account2);
@@ -116,7 +116,7 @@ module leizd::integration {
         asset_pool::list_new_coin<USDC>(&owner);
         asset_pool::list_new_coin<UNI>(&owner);
         vault::initialize(&owner);
-        vault::add_coin_type<USDC>(&owner);
+        vault::activate_coin<USDC>(&owner);
 
         let account1_addr = signer::address_of(&account1);
         let account2_addr = signer::address_of(&account2);
@@ -140,7 +140,7 @@ module leizd::integration {
         asset_pool::list_new_coin<USDC>(&owner);
         asset_pool::list_new_coin<UNI>(&owner);
         vault::initialize(&owner);
-        vault::add_coin_type<USDC>(&owner);
+        vault::activate_coin<USDC>(&owner);
 
         let account1_addr = signer::address_of(&account1);
         let account2_addr = signer::address_of(&account2);
@@ -168,7 +168,7 @@ module leizd::integration {
         asset_pool::list_new_coin<UNI>(&owner);
         asset_pool::list_new_coin<WETH>(&owner);
         vault::initialize(&owner);
-        vault::add_coin_type<USDC>(&owner);
+        vault::activate_coin<USDC>(&owner);
 
         let account1_addr = signer::address_of(&account1);
         let account2_addr = signer::address_of(&account2);
@@ -204,7 +204,7 @@ module leizd::integration {
         asset_pool::list_new_coin<UNI>(&owner);
         asset_pool::list_new_coin<WETH>(&owner);
         vault::initialize(&owner);
-        vault::add_coin_type<USDC>(&owner);
+        vault::activate_coin<USDC>(&owner);
 
         let account1_addr = signer::address_of(&account1);
         let account2_addr = signer::address_of(&account2);
