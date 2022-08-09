@@ -6,7 +6,7 @@ module leizd::debt_coin {
     
     friend leizd::asset_pool;
     friend leizd::pair_pool;
-    friend leizd::bridge_coin_factory;
+    friend leizd::vault;
 
     struct Debt<phantom T> {
         borrowed_coin: Coin<T>

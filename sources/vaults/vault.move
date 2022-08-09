@@ -1,4 +1,4 @@
-module leizd::bridge_coin_factory {
+module leizd::vault {
 
     use std::signer;
     use aptos_framework::coin;
@@ -12,7 +12,7 @@ module leizd::bridge_coin_factory {
     const EZERO_AMOUNT: u64 = 2;
     const ENOT_ENOUGH: u64 = 3;
 
-    struct StablePool<phantom T> has key {
+    struct Vault<phantom T> has key {
         coin: coin::Coin<T>,
         map: simple_map::SimpleMap<address,u64>
     }
@@ -24,15 +24,15 @@ module leizd::bridge_coin_factory {
     }
 
     public entry fun add_coin_type<T>(owner: &signer) {
-        assert!(!exists<StablePool<T>>(@leizd), EALREADY_INITIALIZED);
-        move_to(owner, StablePool<T> { coin: coin::zero<T>(), map: simple_map::create<address,u64>() });
+        assert!(!exists<Vault<T>>(@leizd), EALREADY_INITIALIZED);
+        move_to(owner, Vault<T> { coin: coin::zero<T>(), map: simple_map::create<address,u64>() });
     }
 
-    public entry fun deposit<T>(account: &signer, amount: u64) acquires StablePool {
-        assert!(exists<StablePool<T>>(@leizd), ENOT_PERMITED_COIN);
+    public entry fun deposit<T>(account: &signer, amount: u64) acquires Vault {
+        assert!(exists<Vault<T>>(@leizd), ENOT_PERMITED_COIN);
 
         let withdrawed = coin::withdraw<T>(account, amount);
-        let pool = borrow_global_mut<StablePool<T>>(@leizd);
+        let pool = borrow_global_mut<Vault<T>>(@leizd);
         coin::merge(&mut pool.coin, withdrawed);
 
         let account_addr = signer::address_of(account);
@@ -46,12 +46,12 @@ module leizd::bridge_coin_factory {
         zusd::mint(account, amount);
     }
 
-    public entry fun withdraw<T>(account: &signer, amount: u64) acquires StablePool {
-        assert!(exists<StablePool<T>>(@leizd), ENOT_PERMITED_COIN);
+    public entry fun withdraw<T>(account: &signer, amount: u64) acquires Vault {
+        assert!(exists<Vault<T>>(@leizd), ENOT_PERMITED_COIN);
         assert!(amount > 0, EZERO_AMOUNT);
 
         let account_addr = signer::address_of(account);
-        let pool_ref = borrow_global_mut<StablePool<T>>(@leizd);
+        let pool_ref = borrow_global_mut<Vault<T>>(@leizd);
         assert!(coin::value<T>(&pool_ref.coin) >= amount, ENOT_ENOUGH);
 
         let deposited = coin::extract(&mut pool_ref.coin, amount);
@@ -64,13 +64,13 @@ module leizd::bridge_coin_factory {
         zusd::burn(account, amount);
     }
 
-    public fun balance<T>(): u64 acquires StablePool {
-        let coin = &borrow_global<StablePool<T>>(@leizd).coin;
+    public fun balance<T>(): u64 acquires Vault {
+        let coin = &borrow_global<Vault<T>>(@leizd).coin;
         coin::value(coin)
     }
 
-    public fun balance_of<T>(account_addr: address):u64 acquires StablePool {
-        let map = &borrow_global<StablePool<T>>(@leizd).map;
+    public fun balance_of<T>(account_addr: address):u64 acquires Vault {
+        let map = &borrow_global<Vault<T>>(@leizd).map;
         *simple_map::borrow<address,u64>(map, &account_addr)
     }
 }

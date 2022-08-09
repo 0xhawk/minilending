@@ -10,7 +10,7 @@ module leizd::integration {
     use aptos_framework::coin;
     use aptos_framework::managed_coin;
     use leizd::asset_pool;
-    use leizd::bridge_coin_factory;
+    use leizd::vault;
     use leizd::zusd;
     use leizd::pair_pool;
     use leizd::collateral_coin;
@@ -47,22 +47,41 @@ module leizd::integration {
     }
 
     #[test(owner=@leizd, account1=@0x1)]
-    public entry fun test_deposit_stable(owner: signer, account1: signer) {
+    public entry fun test_deposit_to_vault(owner: signer, account1: signer) {
         init_usdc(&owner);
 
         // init bridge coin
-        bridge_coin_factory::initialize(&owner);
-        bridge_coin_factory::add_coin_type<USDC>(&owner);
+        vault::initialize(&owner);
+        vault::add_coin_type<USDC>(&owner);
 
         let account1_addr = signer::address_of(&account1);
         managed_coin::register<USDC>(&account1);
         managed_coin::mint<USDC>(&owner, account1_addr, 100);
 
-        bridge_coin_factory::deposit<USDC>(&account1, 10);
+        vault::deposit<USDC>(&account1, 10);
         assert!(coin::balance<USDC>(account1_addr) == 90, 0);
-        assert!(bridge_coin_factory::balance<USDC>() == 10, 0);
-        assert!(bridge_coin_factory::balance_of<USDC>(account1_addr) == 10, 0);
+        assert!(vault::balance<USDC>() == 10, 0);
+        assert!(vault::balance_of<USDC>(account1_addr) == 10, 0);
         assert!(zusd::balance(account1_addr) == 10, 0);
+    }
+
+    #[test(owner=@leizd, account1=@0x1)]
+    public entry fun test_withdraw_from_vault(owner: signer, account1: signer) {
+        init_usdc(&owner);
+
+        vault::initialize(&owner);
+        vault::add_coin_type<USDC>(&owner);
+
+        let account1_addr = signer::address_of(&account1);
+        managed_coin::register<USDC>(&account1);
+        managed_coin::mint<USDC>(&owner, account1_addr, 100);
+        vault::deposit<USDC>(&account1, 10);
+
+        vault::withdraw<USDC>(&account1, 9);
+        assert!(coin::balance<USDC>(account1_addr) == 99, 0);
+        assert!(vault::balance<USDC>() == 1, 0);
+        assert!(vault::balance_of<USDC>(account1_addr) == 1, 0);
+        assert!(zusd::balance(account1_addr) == 1, 0);
     }
 
     #[test(owner=@leizd, account1=@0x1, account2=@0x2)]
@@ -71,8 +90,8 @@ module leizd::integration {
         init_uni(&owner);
         asset_pool::list_new_coin<USDC>(&owner);
         asset_pool::list_new_coin<UNI>(&owner);
-        bridge_coin_factory::initialize(&owner);
-        bridge_coin_factory::add_coin_type<USDC>(&owner);
+        vault::initialize(&owner);
+        vault::add_coin_type<USDC>(&owner);
 
         let account1_addr = signer::address_of(&account1);
         let account2_addr = signer::address_of(&account2);
@@ -82,7 +101,7 @@ module leizd::integration {
         managed_coin::mint<UNI>(&owner, account2_addr, 100);
 
         asset_pool::deposit<UNI>(&account2, 10);
-        bridge_coin_factory::deposit<USDC>(&account1, 30);
+        vault::deposit<USDC>(&account1, 30);
 
         pair_pool::deposit<USDC>(&account1, 10);
         assert!(pair_pool::balance<USDC>() == 10, 0);
@@ -96,8 +115,8 @@ module leizd::integration {
         init_uni(&owner);
         asset_pool::list_new_coin<USDC>(&owner);
         asset_pool::list_new_coin<UNI>(&owner);
-        bridge_coin_factory::initialize(&owner);
-        bridge_coin_factory::add_coin_type<USDC>(&owner);
+        vault::initialize(&owner);
+        vault::add_coin_type<USDC>(&owner);
 
         let account1_addr = signer::address_of(&account1);
         let account2_addr = signer::address_of(&account2);
@@ -107,7 +126,7 @@ module leizd::integration {
         managed_coin::mint<UNI>(&owner, account2_addr, 100);
 
         asset_pool::deposit<UNI>(&account2, 10);
-        bridge_coin_factory::deposit<USDC>(&account1, 30);
+        vault::deposit<USDC>(&account1, 30);
         pair_pool::deposit<USDC>(&account1, 10);
 
         pair_pool::withdraw<USDC>(&account1, 10);
@@ -120,8 +139,8 @@ module leizd::integration {
         init_uni(&owner);
         asset_pool::list_new_coin<USDC>(&owner);
         asset_pool::list_new_coin<UNI>(&owner);
-        bridge_coin_factory::initialize(&owner);
-        bridge_coin_factory::add_coin_type<USDC>(&owner);
+        vault::initialize(&owner);
+        vault::add_coin_type<USDC>(&owner);
 
         let account1_addr = signer::address_of(&account1);
         let account2_addr = signer::address_of(&account2);
@@ -133,7 +152,7 @@ module leizd::integration {
         managed_coin::register<zusd::ZUSD>(&account2);
 
         asset_pool::deposit<UNI>(&account2, 50);
-        bridge_coin_factory::deposit<USDC>(&account1, 50);
+        vault::deposit<USDC>(&account1, 50);
         pair_pool::deposit<UNI>(&account1, 30);
 
         pair_pool::borrow<UNI>(&account2, 10);
@@ -148,8 +167,8 @@ module leizd::integration {
         asset_pool::list_new_coin<USDC>(&owner);
         asset_pool::list_new_coin<UNI>(&owner);
         asset_pool::list_new_coin<WETH>(&owner);
-        bridge_coin_factory::initialize(&owner);
-        bridge_coin_factory::add_coin_type<USDC>(&owner);
+        vault::initialize(&owner);
+        vault::add_coin_type<USDC>(&owner);
 
         let account1_addr = signer::address_of(&account1);
         let account2_addr = signer::address_of(&account2);
@@ -166,7 +185,7 @@ module leizd::integration {
 
         asset_pool::deposit<UNI>(&account2, 50);
         asset_pool::deposit<WETH>(&account1, 50);
-        bridge_coin_factory::deposit<USDC>(&account1, 80);
+        vault::deposit<USDC>(&account1, 80);
         pair_pool::deposit<UNI>(&account1, 30);
         pair_pool::deposit<WETH>(&account1, 30);
 
@@ -184,8 +203,8 @@ module leizd::integration {
         asset_pool::list_new_coin<USDC>(&owner);
         asset_pool::list_new_coin<UNI>(&owner);
         asset_pool::list_new_coin<WETH>(&owner);
-        bridge_coin_factory::initialize(&owner);
-        bridge_coin_factory::add_coin_type<USDC>(&owner);
+        vault::initialize(&owner);
+        vault::add_coin_type<USDC>(&owner);
 
         let account1_addr = signer::address_of(&account1);
         let account2_addr = signer::address_of(&account2);
@@ -202,7 +221,7 @@ module leizd::integration {
 
         asset_pool::deposit<UNI>(&account2, 50);
         asset_pool::deposit<WETH>(&account1, 50);
-        bridge_coin_factory::deposit<USDC>(&account1, 80);
+        vault::deposit<USDC>(&account1, 80);
         pair_pool::deposit<UNI>(&account1, 30);
         pair_pool::deposit<WETH>(&account1, 30);
         asset_pool::borrow<WETH,UNI>(&account2, 10);

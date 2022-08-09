@@ -4,7 +4,7 @@ module leizd::zusd {
     use aptos_std::signer;
     use aptos_framework::coin::{Self, MintCapability, BurnCapability};
 
-    friend leizd::bridge_coin_factory;
+    friend leizd::vault;
 
     struct ZUSD has key, store {}
 

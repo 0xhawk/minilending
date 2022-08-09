@@ -7,7 +7,7 @@ module leizd::collateral_coin {
     
     friend leizd::asset_pool;
     friend leizd::pair_pool;
-    friend leizd::bridge_coin_factory;
+    friend leizd::vault;
 
     struct Collateral<phantom T> {
         deposited_coin: Coin<T>
