@@ -2,7 +2,7 @@ module leizd::bridge_pool {
     use std::debug;
     use std::signer;
     use aptos_framework::coin;
-    use leizd::bridge_coin::{BridgeCoin};
+    use leizd::zusd::{ZUSD};
     use leizd::collateral_coin;
     use leizd::debt_coin;
     use leizd::price_oracle;
@@ -13,7 +13,7 @@ module leizd::bridge_pool {
     const ENOT_ENOUGH: u64 = 3;
 
     struct BridgePool<phantom T> has key {
-        coin: coin::Coin<BridgeCoin>
+        coin: coin::Coin<ZUSD>
     }
 
     public(friend) entry fun initialize<T>(owner: &signer) {
@@ -23,11 +23,11 @@ module leizd::bridge_pool {
     public entry fun deposit<T>(account: &signer, amount: u64) acquires BridgePool {
         assert!(amount > 0, EZERO_AMOUNT);
 
-        let withdrawed = coin::withdraw<BridgeCoin>(account, amount);
+        let withdrawed = coin::withdraw<ZUSD>(account, amount);
         let coin_ref = &mut borrow_global_mut<BridgePool<T>>(@leizd).coin;
         coin::merge(coin_ref, withdrawed);
 
-        collateral_coin::mint<BridgeCoin>(account, amount);
+        collateral_coin::mint<ZUSD>(account, amount);
     }
 
     public entry fun withdraw<T>(account: &signer, amount: u64) acquires BridgePool {
@@ -35,12 +35,12 @@ module leizd::bridge_pool {
 
         let account_addr = signer::address_of(account);
         let pool_ref = borrow_global_mut<BridgePool<T>>(@leizd);
-        assert!(coin::value<BridgeCoin>(&pool_ref.coin) >= amount, ENOT_ENOUGH);
+        assert!(coin::value<ZUSD>(&pool_ref.coin) >= amount, ENOT_ENOUGH);
 
         let deposited = coin::extract(&mut pool_ref.coin, amount);
-        coin::deposit<BridgeCoin>(account_addr, deposited);
+        coin::deposit<ZUSD>(account_addr, deposited);
 
-        collateral_coin::burn<BridgeCoin>(account, amount);
+        collateral_coin::burn<ZUSD>(account, amount);
     }
 
     public entry fun borrow<T>(account: &signer, amount: u64) acquires BridgePool {
@@ -52,9 +52,9 @@ module leizd::bridge_pool {
         let account_addr = signer::address_of(account);
         let pool_ref = borrow_global_mut<BridgePool<T>>(@leizd);
         let deposited = coin::extract(&mut pool_ref.coin, amount);
-        coin::deposit<BridgeCoin>(account_addr, deposited);
+        coin::deposit<ZUSD>(account_addr, deposited);
 
-        debt_coin::mint<BridgeCoin>(account, amount);
+        debt_coin::mint<ZUSD>(account, amount);
     }
 
     public entry fun repay<T>() {

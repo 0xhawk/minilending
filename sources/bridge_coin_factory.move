@@ -3,12 +3,14 @@ module leizd::bridge_coin_factory {
     use std::signer;
     use aptos_framework::coin;
     use aptos_framework::simple_map;
-    use leizd::bridge_coin;
+    use leizd::zusd;
     use leizd::collateral_coin;
     use leizd::debt_coin;
 
-    const ENOT_PERMITED_COIN: u64 = 1;
-    const EALREADY_INITIALIZED: u64 = 2;
+    const ENOT_PERMITED_COIN: u64 = 0;
+    const EALREADY_INITIALIZED: u64 = 1;
+    const EZERO_AMOUNT: u64 = 2;
+    const ENOT_ENOUGH: u64 = 3;
 
     struct StablePool<phantom T> has key {
         coin: coin::Coin<T>,
@@ -16,12 +18,12 @@ module leizd::bridge_coin_factory {
     }
 
     public entry fun initialize(owner: &signer) {
-        bridge_coin::initialize(owner);
-        collateral_coin::initialize<bridge_coin::BridgeCoin>(owner);
-        debt_coin::initialize<bridge_coin::BridgeCoin>(owner);
+        zusd::initialize(owner);
+        collateral_coin::initialize<zusd::ZUSD>(owner);
+        debt_coin::initialize<zusd::ZUSD>(owner);
     }
 
-    public entry fun init_pool<T>(owner: &signer) {
+    public entry fun add_coin_type<T>(owner: &signer) {
         assert!(!exists<StablePool<T>>(@leizd), EALREADY_INITIALIZED);
         move_to(owner, StablePool<T> { coin: coin::zero<T>(), map: simple_map::create<address,u64>() });
     }
@@ -41,11 +43,25 @@ module leizd::bridge_coin_factory {
             simple_map::add<address,u64>(&mut pool.map, account_addr, amount);
         };
         
-        bridge_coin::mint(account, amount);
+        zusd::mint(account, amount);
     }
 
-    public entry fun withdraw<T>() {
-        // TODO
+    public entry fun withdraw<T>(account: &signer, amount: u64) acquires StablePool {
+        assert!(exists<StablePool<T>>(@leizd), ENOT_PERMITED_COIN);
+        assert!(amount > 0, EZERO_AMOUNT);
+
+        let account_addr = signer::address_of(account);
+        let pool_ref = borrow_global_mut<StablePool<T>>(@leizd);
+        assert!(coin::value<T>(&pool_ref.coin) >= amount, ENOT_ENOUGH);
+
+        let deposited = coin::extract(&mut pool_ref.coin, amount);
+        coin::deposit<T>(account_addr, deposited);
+
+        assert!(simple_map::contains_key<address,u64>(&mut pool_ref.map, &account_addr), ENOT_PERMITED_COIN);
+        let map = simple_map::borrow_mut<address,u64>(&mut pool_ref.map, &account_addr);
+        *map = *map - amount;
+
+        zusd::burn(account, amount);
     }
 
     public fun balance<T>(): u64 acquires StablePool {
