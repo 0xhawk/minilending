@@ -12,7 +12,7 @@ module leizd::integration {
     use leizd::asset_pool;
     use leizd::bridge_coin_factory;
     use leizd::zusd;
-    use leizd::bridge_pool;
+    use leizd::pair_pool;
     use leizd::collateral_coin;
     use leizd::debt_coin;
 
@@ -84,9 +84,9 @@ module leizd::integration {
         asset_pool::deposit<UNI>(&account2, 10);
         bridge_coin_factory::deposit<USDC>(&account1, 30);
 
-        bridge_pool::deposit<USDC>(&account1, 10);
-        assert!(bridge_pool::balance<USDC>() == 10, 0);
-        assert!(bridge_pool::balance<UNI>() == 0, 0);
+        pair_pool::deposit<USDC>(&account1, 10);
+        assert!(pair_pool::balance<USDC>() == 10, 0);
+        assert!(pair_pool::balance<UNI>() == 0, 0);
         assert!(zusd::balance(account1_addr) == 20, 0);
     }
 
@@ -108,10 +108,10 @@ module leizd::integration {
 
         asset_pool::deposit<UNI>(&account2, 10);
         bridge_coin_factory::deposit<USDC>(&account1, 30);
-        bridge_pool::deposit<USDC>(&account1, 10);
+        pair_pool::deposit<USDC>(&account1, 10);
 
-        bridge_pool::withdraw<USDC>(&account1, 10);
-        assert!(bridge_pool::balance<USDC>() == 0, 0);
+        pair_pool::withdraw<USDC>(&account1, 10);
+        assert!(pair_pool::balance<USDC>() == 0, 0);
     }
 
     #[test(owner=@leizd, account1=@0x1, account2=@0x2)]
@@ -134,9 +134,9 @@ module leizd::integration {
 
         asset_pool::deposit<UNI>(&account2, 50);
         bridge_coin_factory::deposit<USDC>(&account1, 50);
-        bridge_pool::deposit<UNI>(&account1, 30);
+        pair_pool::deposit<UNI>(&account1, 30);
 
-        bridge_pool::borrow<UNI>(&account2, 10);
+        pair_pool::borrow<UNI>(&account2, 10);
         assert!(zusd::balance(account2_addr) == 10, 0);
     }
 
@@ -167,8 +167,8 @@ module leizd::integration {
         asset_pool::deposit<UNI>(&account2, 50);
         asset_pool::deposit<WETH>(&account1, 50);
         bridge_coin_factory::deposit<USDC>(&account1, 80);
-        bridge_pool::deposit<UNI>(&account1, 30);
-        bridge_pool::deposit<WETH>(&account1, 30);
+        pair_pool::deposit<UNI>(&account1, 30);
+        pair_pool::deposit<WETH>(&account1, 30);
 
         // WETH -> UNI
         asset_pool::borrow<WETH,UNI>(&account2, 10);
@@ -203,8 +203,8 @@ module leizd::integration {
         asset_pool::deposit<UNI>(&account2, 50);
         asset_pool::deposit<WETH>(&account1, 50);
         bridge_coin_factory::deposit<USDC>(&account1, 80);
-        bridge_pool::deposit<UNI>(&account1, 30);
-        bridge_pool::deposit<WETH>(&account1, 30);
+        pair_pool::deposit<UNI>(&account1, 30);
+        pair_pool::deposit<WETH>(&account1, 30);
         asset_pool::borrow<WETH,UNI>(&account2, 10);
 
         asset_pool::repay<WETH,UNI>(&account2, 10);

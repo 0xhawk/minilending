@@ -1,4 +1,4 @@
-module leizd::bridge_pool {
+module leizd::pair_pool {
     use std::debug;
     use std::signer;
     use aptos_framework::coin;

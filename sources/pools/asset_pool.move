@@ -6,7 +6,7 @@ module leizd::asset_pool {
     use leizd::collateral_coin;
     use leizd::debt_coin;
     use leizd::price_oracle;
-    use leizd::bridge_pool;
+    use leizd::pair_pool;
     use leizd::reserve_data;
 
     const EZERO_AMOUNT: u64 = 0;
@@ -26,7 +26,7 @@ module leizd::asset_pool {
         
         collateral_coin::initialize<T>(owner);
         debt_coin::initialize<T>(owner);
-        bridge_pool::initialize<T>(owner);
+        pair_pool::initialize<T>(owner);
         reserve_data::initialize<T>(owner);
         move_to(owner, Pool<T> {coin: coin::zero<T>()});
     }
@@ -67,10 +67,10 @@ module leizd::asset_pool {
         let dest_addr = signer::address_of(account);
         
         // borrow bridge coin
-        bridge_pool::borrow<C>(account, amount);
+        pair_pool::borrow<C>(account, amount);
 
         // deposit bridge coin
-        bridge_pool::deposit<D>(account, amount);
+        pair_pool::deposit<D>(account, amount);
 
         let pool_ref = borrow_global_mut<Pool<D>>(@leizd);
         let deposited = coin::extract(&mut pool_ref.coin, amount);
@@ -85,8 +85,8 @@ module leizd::asset_pool {
         let coin_ref = &mut borrow_global_mut<Pool<D>>(@leizd).coin;
         coin::merge(coin_ref, withdrawed);
 
-        bridge_pool::borrow<D>(account, amount);
-        bridge_pool::deposit<C>(account, amount);
+        pair_pool::borrow<D>(account, amount);
+        pair_pool::deposit<C>(account, amount);
 
         debt_coin::burn<D>(account, amount);
     }
