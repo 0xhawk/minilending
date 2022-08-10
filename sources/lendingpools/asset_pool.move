@@ -3,11 +3,13 @@ module leizd::asset_pool {
     use std::signer;
     use aptos_framework::coin;
     use aptos_framework::simple_map;
+    // use aptos_framework::timestamp;
     use leizd::collateral_coin;
     use leizd::debt_coin;
     use leizd::price_oracle;
     use leizd::pair_pool;
     use leizd::reserve_data;
+    use leizd::interest_rate_model;
 
     const EZERO_AMOUNT: u64 = 0;
     const ENOT_INITIALIZED: u64 = 1;
@@ -15,15 +17,25 @@ module leizd::asset_pool {
     const ENOT_ENOUGH: u64 = 3;
     const ENOT_POOL_IS_INACTIVE: u64 = 4;
 
+    const DECIMAL_PRECISION: u64 = 1000000000000000000;
+
+
     struct Pool<phantom T> has key {
         coin: coin::Coin<T>,
         balance: simple_map::SimpleMap<address,Balance<T>>,
+        total_deposited: u64,
+        total_borrowed: u64,
         active: bool
     }
 
     struct Balance<phantom T> has store {
         collateral: u64,
         debt: u64
+    }
+
+    struct State<phantom T> has key {
+        last_timestamp: u64,
+        protocol_fees: u64
     }
 
     public entry fun list_new_coin<T>(owner: &signer) {
@@ -35,12 +47,51 @@ module leizd::asset_pool {
         debt_coin::initialize<T>(owner);
         pair_pool::initialize<T>(owner);
         reserve_data::initialize<T>(owner);
+        interest_rate_model::initialize<T>(owner);
         move_to(owner, Pool<T> {
             coin: coin::zero<T>(), 
             balance: simple_map::create<address,Balance<T>>(),
+            total_deposited: 0,
+            total_borrowed: 0,
             active: true
         });
+        move_to(owner, State<T> {
+            last_timestamp: 0,
+            protocol_fees: 0
+        });
     }
+
+    // TODO: enable timestamp
+    // fun accrue_interest<T>() acquires State, Pool {
+    //     let state = borrow_global_mut<State<T>>(@leizd);
+    //     let now = timestamp::now_microseconds();
+
+    //     if (state.last_timestamp == 0) {
+    //         state.last_timestamp = now;
+    //         return
+    //     };
+
+    //     if (state.last_timestamp == now) {
+    //         return
+    //     };
+
+    //     let interest = interest_rate_model::interest_rate<T>(now);
+    //     let protocol_share_fee = 0; // TODO
+
+    //     let pool = borrow_global_mut<Pool<T>>(@leizd);
+    //     let total_borrowed_cached = pool.total_borrowed;
+    //     let protocol_fees_cached = state.protocol_fees;
+
+    //     let accrued_interest = total_borrowed_cached * interest / DECIMAL_PRECISION;
+    //     let protocol_share = accrued_interest * protocol_share_fee / DECIMAL_PRECISION;
+    //     let new_protocol_fees = protocol_fees_cached + protocol_share;
+    //     let depositors_share = accrued_interest - protocol_share;
+
+    //     pool.total_borrowed = total_borrowed_cached + accrued_interest;
+    //     pool.total_deposited = pool.total_deposited + depositors_share;
+    //     state.protocol_fees = new_protocol_fees;
+    //     state.last_timestamp = now;
+    // }
 
     public entry fun deposit<T>(account: &signer, amount: u64) acquires Pool {
         assert!(amount > 0, EZERO_AMOUNT);
