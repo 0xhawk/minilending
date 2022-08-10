@@ -62,6 +62,21 @@ module leizd::integration {
         assert!(coin::balance<USDC>(account1_addr) == 90, 0);
         assert!(vault::balance<USDC>() == 10, 0);
         assert!(vault::balance_of<USDC>(account1_addr) == 10, 0);
+    }
+
+    #[test(owner=@leizd, account1=@0x1)]
+    public entry fun test_borror_zusd(owner: signer, account1: signer) {
+        init_usdc(&owner);
+
+        vault::initialize(&owner);
+        vault::activate_coin<USDC>(&owner);
+
+        let account1_addr = signer::address_of(&account1);
+        managed_coin::register<USDC>(&account1);
+        managed_coin::mint<USDC>(&owner, account1_addr, 100);
+
+        vault::deposit<USDC>(&account1, 10);
+        vault::borrow_zusd<USDC>(&account1, 10);
         assert!(zusd::balance(account1_addr) == 10, 0);
     }
 
@@ -81,7 +96,6 @@ module leizd::integration {
         assert!(coin::balance<USDC>(account1_addr) == 99, 0);
         assert!(vault::balance<USDC>() == 1, 0);
         assert!(vault::balance_of<USDC>(account1_addr) == 1, 0);
-        assert!(zusd::balance(account1_addr) == 1, 0);
     }
 
     #[test(owner=@leizd, account1=@0x1, account2=@0x2)]
@@ -102,6 +116,7 @@ module leizd::integration {
 
         asset_pool::deposit<UNI>(&account2, 10);
         vault::deposit<USDC>(&account1, 30);
+        vault::borrow_zusd<USDC>(&account1, 30);
 
         pair_pool::deposit<USDC>(&account1, 10);
         assert!(pair_pool::balance<USDC>() == 10, 0);
@@ -127,6 +142,7 @@ module leizd::integration {
 
         asset_pool::deposit<UNI>(&account2, 10);
         vault::deposit<USDC>(&account1, 30);
+        vault::borrow_zusd<USDC>(&account1, 30);
         pair_pool::deposit<USDC>(&account1, 10);
 
         pair_pool::withdraw<USDC>(&account1, 10);
@@ -153,6 +169,7 @@ module leizd::integration {
 
         asset_pool::deposit<UNI>(&account2, 50);
         vault::deposit<USDC>(&account1, 50);
+        vault::borrow_zusd<USDC>(&account1, 50);
         pair_pool::deposit<UNI>(&account1, 30);
 
         pair_pool::borrow<UNI>(&account2, 10);
@@ -186,6 +203,7 @@ module leizd::integration {
         asset_pool::deposit<UNI>(&account2, 50);
         asset_pool::deposit<WETH>(&account1, 50);
         vault::deposit<USDC>(&account1, 80);
+        vault::borrow_zusd<USDC>(&account1, 80);
         pair_pool::deposit<UNI>(&account1, 30);
         pair_pool::deposit<WETH>(&account1, 30);
 
@@ -222,6 +240,7 @@ module leizd::integration {
         asset_pool::deposit<UNI>(&account2, 50);
         asset_pool::deposit<WETH>(&account1, 50);
         vault::deposit<USDC>(&account1, 80);
+        vault::borrow_zusd<USDC>(&account1, 80);
         pair_pool::deposit<UNI>(&account1, 30);
         pair_pool::deposit<WETH>(&account1, 30);
         asset_pool::borrow<WETH,UNI>(&account2, 10);
