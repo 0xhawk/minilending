@@ -34,7 +34,7 @@ module leizd::reserve_data {
 
     public fun default_reserve_data<T>(): ReserveData<T> {
         ReserveData<T> {
-            ltv: 80,
+            ltv: 90,
             liquidation_threshold: 85,
             liquidation_bonus: 10,
             reserve_factor: 20,

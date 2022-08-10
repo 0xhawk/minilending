@@ -152,33 +152,6 @@ module leizd::integration {
     }
 
     #[test(owner=@leizd, account1=@0x1, account2=@0x2)]
-    public entry fun test_borrow_bridge_coin(owner: signer, account1: signer, account2: signer) {
-        init_usdc(&owner);
-        init_uni(&owner);
-        asset_pool::list_new_coin<USDC>(&owner);
-        asset_pool::list_new_coin<UNI>(&owner);
-        vault::initialize(&owner);
-        vault::activate_coin<USDC>(&owner);
-
-        let account1_addr = signer::address_of(&account1);
-        let account2_addr = signer::address_of(&account2);
-        managed_coin::register<USDC>(&account1);
-        managed_coin::mint<USDC>(&owner, account1_addr, 100);
-        managed_coin::register<UNI>(&account2);
-        managed_coin::mint<UNI>(&owner, account2_addr, 100);
-        managed_coin::register<zusd::ZUSD>(&account1);
-        managed_coin::register<zusd::ZUSD>(&account2);
-
-        asset_pool::deposit<UNI>(&account2, 50);
-        vault::deposit<USDC>(&account1, 50);
-        vault::borrow_zusd<USDC>(&account1, 50);
-        pair_pool::deposit<UNI>(&account1, 30);
-
-        pair_pool::borrow<UNI>(&account2, 10);
-        assert!(zusd::balance(account2_addr) == 10, 0);
-    }
-
-    #[test(owner=@leizd, account1=@0x1, account2=@0x2)]
     public entry fun test_borrow_uni_by_weth(owner: signer, account1: signer, account2: signer) {
         init_usdc(&owner);
         init_uni(&owner);
