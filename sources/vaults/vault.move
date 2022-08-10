@@ -13,6 +13,9 @@ module leizd::vault {
     const ENOT_ENOUGH: u64 = 3;
     const EDISABLED_COIN: u64 = 4;
 
+    const DECIMAL_PRECISION: u64 = 1000000000000000000;
+    const BORROWING_FEE_FLOOR: u64 = 1000000000000000000 * 5 / 1000; // 0.5%
+    
     struct Vault<phantom T> has key {
         coin: coin::Coin<T>,
         balance: simple_map::SimpleMap<address,Balance<T>>,
@@ -21,7 +24,7 @@ module leizd::vault {
 
     struct Balance<phantom T> has store {
         collateral: u64,
-        debt: u64,
+        zusd_debt: u64,
     }
 
     public entry fun initialize(owner: &signer) {
@@ -57,7 +60,7 @@ module leizd::vault {
         } else {
             simple_map::add<address,Balance<T>>(&mut pool.balance, account_addr, Balance {
                 collateral: amount,
-                debt: 0
+                zusd_debt: 0
             });
         };
         let withdrawed = coin::withdraw<T>(account, amount);
@@ -80,14 +83,15 @@ module leizd::vault {
         balance.collateral = balance.collateral - amount;
     }
 
-
     public entry fun borrow_zusd<T>(account: &signer, amount: u64) acquires Vault {
         let account_addr = signer::address_of(account);
         let pool_ref = borrow_global_mut<Vault<T>>(@leizd);
         assert!(simple_map::contains_key<address,Balance<T>>(&mut pool_ref.balance, &account_addr), 0);
         
         let balance = simple_map::borrow_mut<address,Balance<T>>(&mut pool_ref.balance, &account_addr);
-        balance.debt = balance.debt + amount;
+        let zusd_fee = borrowing_fee(amount);
+        balance.zusd_debt = balance.zusd_debt + amount + zusd_fee;
+
         zusd::mint(account, amount);
     }
 
@@ -97,18 +101,30 @@ module leizd::vault {
         assert!(simple_map::contains_key<address,Balance<T>>(&mut pool_ref.balance, &account_addr), 0);
 
         let balance = simple_map::borrow_mut<address,Balance<T>>(&mut pool_ref.balance, &account_addr);
-        balance.debt = balance.debt - amount;
+        balance.zusd_debt = balance.zusd_debt - amount;
         zusd::burn(account, amount);
     }
 
+    fun borrowing_rate(): u64 {
+        BORROWING_FEE_FLOOR
+    }
+
+    public fun borrowing_fee(amount: u64): u64 {
+        amount * borrowing_rate() / DECIMAL_PRECISION
+    }
 
     public fun balance<T>(): u64 acquires Vault {
         let coin = &borrow_global<Vault<T>>(@leizd).coin;
         coin::value(coin)
     }
 
-    public fun balance_of<T>(account_addr: address):u64 acquires Vault {
+    public fun collateral_of<T>(account_addr: address):u64 acquires Vault {
         let balance = &borrow_global<Vault<T>>(@leizd).balance;
         simple_map::borrow<address,Balance<T>>(balance, &account_addr).collateral
+    }
+
+    public fun debt_zusd_of<T>(account_addr: address):u64 acquires Vault {
+        let balance = &borrow_global<Vault<T>>(@leizd).balance;
+        simple_map::borrow<address,Balance<T>>(balance, &account_addr).zusd_debt
     }
 }

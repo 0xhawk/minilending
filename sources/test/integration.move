@@ -61,11 +61,11 @@ module leizd::integration {
         vault::deposit<USDC>(&account1, 10);
         assert!(coin::balance<USDC>(account1_addr) == 90, 0);
         assert!(vault::balance<USDC>() == 10, 0);
-        assert!(vault::balance_of<USDC>(account1_addr) == 10, 0);
+        assert!(vault::collateral_of<USDC>(account1_addr) == 10, 0);
     }
 
     #[test(owner=@leizd, account1=@0x1)]
-    public entry fun test_borror_zusd(owner: signer, account1: signer) {
+    public entry fun test_borrow_zusd(owner: signer, account1: signer) {
         init_usdc(&owner);
 
         vault::initialize(&owner);
@@ -73,11 +73,13 @@ module leizd::integration {
 
         let account1_addr = signer::address_of(&account1);
         managed_coin::register<USDC>(&account1);
-        managed_coin::mint<USDC>(&owner, account1_addr, 100);
+        managed_coin::mint<USDC>(&owner, account1_addr, 10000);
 
-        vault::deposit<USDC>(&account1, 10);
-        vault::borrow_zusd<USDC>(&account1, 10);
-        assert!(zusd::balance(account1_addr) == 10, 0);
+        vault::deposit<USDC>(&account1, 1000);
+        vault::borrow_zusd<USDC>(&account1, 1000);
+        assert!(zusd::balance(account1_addr) == 1000, 0);
+        assert!(vault::collateral_of<USDC>(account1_addr) == 1000, 0);
+        assert!(vault::debt_zusd_of<USDC>(account1_addr) == 1005, 0);
     }
 
     #[test(owner=@leizd, account1=@0x1)]
@@ -95,7 +97,7 @@ module leizd::integration {
         vault::withdraw<USDC>(&account1, 9);
         assert!(coin::balance<USDC>(account1_addr) == 99, 0);
         assert!(vault::balance<USDC>() == 1, 0);
-        assert!(vault::balance_of<USDC>(account1_addr) == 1, 0);
+        assert!(vault::collateral_of<USDC>(account1_addr) == 1, 0);
     }
 
     #[test(owner=@leizd, account1=@0x1, account2=@0x2)]
