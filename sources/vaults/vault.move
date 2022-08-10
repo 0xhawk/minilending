@@ -14,7 +14,7 @@ module leizd::vault {
     const EDISABLED_COIN: u64 = 4;
 
     const DECIMAL_PRECISION: u64 = 1000000000000000000;
-    const BORROWING_FEE_FLOOR: u64 = 1000000000000000000 * 5 / 1000; // 0.5%
+    const BORROWING_FEE_FLOOR: u64 = 1000000000000000000 * 8 / 1000; // 0.8%
     
     struct Vault<phantom T> has key {
         coin: coin::Coin<T>,

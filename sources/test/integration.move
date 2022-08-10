@@ -79,7 +79,7 @@ module leizd::integration {
         vault::borrow_zusd<USDC>(&account1, 1000);
         assert!(zusd::balance(account1_addr) == 1000, 0);
         assert!(vault::collateral_of<USDC>(account1_addr) == 1000, 0);
-        assert!(vault::debt_zusd_of<USDC>(account1_addr) == 1005, 0);
+        assert!(vault::debt_zusd_of<USDC>(account1_addr) == 1008, 0);
     }
 
     #[test(owner=@leizd, account1=@0x1)]
@@ -210,9 +210,9 @@ module leizd::integration {
         pair_pool::deposit<WETH>(&account1, 30);
 
         // WETH -> UNI
-        asset_pool::borrow<WETH,UNI>(&account2, 10);
-        assert!(coin::balance<UNI>(account2_addr) == 60, 0);
-        assert!(debt_coin::balance<UNI>(account2_addr) == 10, 0);
+        asset_pool::borrow<UNI,WETH>(&account2, 10);
+        assert!(coin::balance<WETH>(account2_addr) == 110, 0);
+        assert!(debt_coin::balance<WETH>(account2_addr) == 10, 0);
     }
 
     #[test(owner=@leizd, account1=@0x1, account2=@0x2)]
@@ -245,11 +245,11 @@ module leizd::integration {
         vault::borrow_zusd<USDC>(&account1, 80);
         pair_pool::deposit<UNI>(&account1, 30);
         pair_pool::deposit<WETH>(&account1, 30);
-        asset_pool::borrow<WETH,UNI>(&account2, 10);
+        asset_pool::borrow<UNI,WETH>(&account2, 10);
 
-        asset_pool::repay<WETH,UNI>(&account2, 10);
-        assert!(coin::balance<UNI>(account2_addr) == 50, 0);
-        assert!(debt_coin::balance<UNI>(account2_addr) == 0, 0);
+        asset_pool::repay<UNI,WETH>(&account2, 10);
+        assert!(coin::balance<WETH>(account2_addr) == 100, 0);
+        assert!(debt_coin::balance<WETH>(account2_addr) == 0, 0);
     }
 
     fun init_usdc(account: &signer) {

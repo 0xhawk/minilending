@@ -1,8 +1,8 @@
 module leizd::asset_pool {
 
-    use std::debug;
     use std::signer;
     use aptos_framework::coin;
+    use aptos_framework::simple_map;
     use leizd::collateral_coin;
     use leizd::debt_coin;
     use leizd::price_oracle;
@@ -16,7 +16,14 @@ module leizd::asset_pool {
     const ENOT_POOL_IS_INACTIVE: u64 = 4;
 
     struct Pool<phantom T> has key {
-        coin: coin::Coin<T>
+        coin: coin::Coin<T>,
+        balance: simple_map::SimpleMap<address,Balance<T>>,
+        active: bool
+    }
+
+    struct Balance<phantom T> has store {
+        collateral: u64,
+        debt: u64
     }
 
     public entry fun list_new_coin<T>(owner: &signer) {
@@ -28,7 +35,11 @@ module leizd::asset_pool {
         debt_coin::initialize<T>(owner);
         pair_pool::initialize<T>(owner);
         reserve_data::initialize<T>(owner);
-        move_to(owner, Pool<T> {coin: coin::zero<T>()});
+        move_to(owner, Pool<T> {
+            coin: coin::zero<T>(), 
+            balance: simple_map::create<address,Balance<T>>(),
+            active: true
+        });
     }
 
     public entry fun deposit<T>(account: &signer, amount: u64) acquires Pool {
@@ -38,9 +49,21 @@ module leizd::asset_pool {
         // TODO: update state
         // TODO: update interest rates
 
+        let pool_ref = borrow_global_mut<Pool<T>>(@leizd);
+
+        let account_addr = signer::address_of(account);
+        if (simple_map::contains_key<address,Balance<T>>(&mut pool_ref.balance, &account_addr)) {
+            let balance = simple_map::borrow_mut<address,Balance<T>>(&mut pool_ref.balance, &account_addr);
+            balance.collateral = balance.collateral + amount;
+        } else {
+            simple_map::add<address,Balance<T>>(&mut pool_ref.balance, account_addr, Balance {
+                collateral: amount,
+                debt: 0
+            });
+        };
+
         let withdrawed = coin::withdraw<T>(account, amount);
-        let coin_ref = &mut borrow_global_mut<Pool<T>>(@leizd).coin;
-        coin::merge(coin_ref, withdrawed);
+        coin::merge(&mut pool_ref.coin, withdrawed);
     
         collateral_coin::mint<T>(account, amount);
     }
@@ -60,12 +83,9 @@ module leizd::asset_pool {
 
     public fun borrow<C,D>(account: &signer, amount: u64) acquires Pool {
         
-        let price = price_oracle::asset_price<C>();
-        debug::print(&price);
-        // TODO: validate health
+        let account_addr = signer::address_of(account);
+        validate_borrow<C,D>(account_addr, amount);
 
-        let dest_addr = signer::address_of(account);
-        
         // borrow bridge coin
         pair_pool::borrow<C>(account, amount);
 
@@ -74,7 +94,7 @@ module leizd::asset_pool {
 
         let pool_ref = borrow_global_mut<Pool<D>>(@leizd);
         let deposited = coin::extract(&mut pool_ref.coin, amount);
-        coin::deposit<D>(dest_addr, deposited);
+        coin::deposit<D>(account_addr, deposited);
 
         debt_coin::mint<D>(account, amount);
     }
@@ -89,6 +109,30 @@ module leizd::asset_pool {
         pair_pool::deposit<C>(account, amount);
 
         debt_coin::burn<D>(account, amount);
+    }
+
+    fun validate_borrow<C,D>(account_addr: address, amount: u64) acquires Pool {
+        let c_pool = borrow_global<Pool<C>>(@leizd);
+        let d_pool = borrow_global<Pool<C>>(@leizd);
+        assert!(c_pool.active && d_pool.active, 0);
+        assert!(coin::value(&d_pool.coin) >= amount, 0);
+
+        let allowed_volume = collateral_volume<C>(account_addr, c_pool) * reserve_data::ltv<C>();
+        assert!(allowed_volume >= borrowing_volume<D>(amount), 0);
+    }
+
+    fun collateral_volume<T>(account_addr: address, pool: &Pool<T>): u64 {
+        let price = price_oracle::asset_price<T>();
+        if (simple_map::contains_key<address,Balance<T>>(&pool.balance, &account_addr)) {
+            simple_map::borrow<address,Balance<T>>(&pool.balance, &account_addr).collateral * price
+        } else {
+            0
+        }
+    }
+
+    fun borrowing_volume<T>(amount: u64): u64 {
+        let price = price_oracle::asset_price<T>();
+        price * amount
     }
 
     public fun balance<T>(): u64 acquires Pool {
