@@ -4,7 +4,8 @@ module leizd::collateral_coin {
     use std::signer;
     use aptos_std::type_info;
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability};
-    
+    use aptos_framework::coins;
+
     friend leizd::asset_pool;
     friend leizd::pair_pool;
     friend leizd::vault;
@@ -46,7 +47,8 @@ module leizd::collateral_coin {
 
         let dest_addr = signer::address_of(dest);
         if (!coin::is_account_registered<Collateral<T>>(dest_addr)) {
-            coin::register<Collateral<T>>(dest);
+            // coin::register<Collateral<T>>(dest);
+            coins::register<Collateral<T>>(dest);
         };
 
         let coin_minted = coin::mint(amount, &caps.mint_cap);

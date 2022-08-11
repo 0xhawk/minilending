@@ -3,7 +3,8 @@ module leizd::asset_pool {
     use std::signer;
     use aptos_framework::coin;
     use aptos_framework::simple_map;
-    // use aptos_framework::timestamp;
+    use aptos_framework::account;
+    use aptos_framework::timestamp;
     use leizd::collateral_coin;
     use leizd::debt_coin;
     use leizd::price_oracle;
@@ -62,36 +63,36 @@ module leizd::asset_pool {
     }
 
     // TODO: enable timestamp
-    // fun accrue_interest<T>() acquires State, Pool {
-    //     let state = borrow_global_mut<State<T>>(@leizd);
-    //     let now = timestamp::now_microseconds();
+    fun accrue_interest<T>() acquires State, Pool {
+        let state = borrow_global_mut<State<T>>(@leizd);
+        let now = timestamp::now_microseconds();
 
-    //     if (state.last_timestamp == 0) {
-    //         state.last_timestamp = now;
-    //         return
-    //     };
+        if (state.last_timestamp == 0) {
+            state.last_timestamp = now;
+            return
+        };
 
-    //     if (state.last_timestamp == now) {
-    //         return
-    //     };
+        if (state.last_timestamp == now) {
+            return
+        };
 
-    //     let interest = interest_rate_model::interest_rate<T>(now);
-    //     let protocol_share_fee = 0; // TODO
+        let interest = interest_rate_model::interest_rate<T>(now);
+        let protocol_share_fee = 0; // TODO
 
-    //     let pool = borrow_global_mut<Pool<T>>(@leizd);
-    //     let total_borrowed_cached = pool.total_borrowed;
-    //     let protocol_fees_cached = state.protocol_fees;
+        let pool = borrow_global_mut<Pool<T>>(@leizd);
+        let total_borrowed_cached = pool.total_borrowed;
+        let protocol_fees_cached = state.protocol_fees;
 
-    //     let accrued_interest = total_borrowed_cached * interest / DECIMAL_PRECISION;
-    //     let protocol_share = accrued_interest * protocol_share_fee / DECIMAL_PRECISION;
-    //     let new_protocol_fees = protocol_fees_cached + protocol_share;
-    //     let depositors_share = accrued_interest - protocol_share;
+        let accrued_interest = total_borrowed_cached * interest / DECIMAL_PRECISION;
+        let protocol_share = accrued_interest * protocol_share_fee / DECIMAL_PRECISION;
+        let new_protocol_fees = protocol_fees_cached + protocol_share;
+        let depositors_share = accrued_interest - protocol_share;
 
-    //     pool.total_borrowed = total_borrowed_cached + accrued_interest;
-    //     pool.total_deposited = pool.total_deposited + depositors_share;
-    //     state.protocol_fees = new_protocol_fees;
-    //     state.last_timestamp = now;
-    // }
+        pool.total_borrowed = total_borrowed_cached + accrued_interest;
+        pool.total_deposited = pool.total_deposited + depositors_share;
+        state.protocol_fees = new_protocol_fees;
+        state.last_timestamp = now;
+    }
 
     public entry fun deposit<T>(account: &signer, amount: u64) acquires Pool {
         assert!(amount > 0, EZERO_AMOUNT);
@@ -198,110 +199,115 @@ module leizd::asset_pool {
     #[test_only]
     use aptos_framework::managed_coin;
 
-    #[test(source=@leizd, user1 = @0x1)]
-    public entry fun test_deposit_and_withdraw(source: signer, user1: signer) acquires Pool {
-        
+    #[test(owner=@leizd, account1 = @0x11)]
+    public entry fun test_deposit_and_withdraw(owner: signer, account1: signer) acquires Pool {
+        account::create_account(signer::address_of(&owner));
+        account::create_account(signer::address_of(&account1));
+
         managed_coin::initialize<CoinA>(
-            &source,
+            &owner,
             b"CoinA",
             b"AAA",
             18,
             true
         );
         assert!(coin::is_coin_initialized<CoinA>(), 0);
-        managed_coin::register<CoinA>(&source);
-        managed_coin::register<CoinA>(&user1);
+        managed_coin::register<CoinA>(&owner);
+        managed_coin::register<CoinA>(&account1);
 
         managed_coin::initialize<CoinB>(
-            &source,
+            &owner,
             b"CoinB",
             b"BBB",
             18,
             true
         );
         assert!(coin::is_coin_initialized<CoinB>(), 0);
-        managed_coin::register<CoinB>(&source);
-        managed_coin::register<CoinB>(&user1);
+        managed_coin::register<CoinB>(&owner);
+        managed_coin::register<CoinB>(&account1);
 
-        list_new_coin<CoinA>(&source);
-        list_new_coin<CoinB>(&source);
+        list_new_coin<CoinA>(&owner);
+        list_new_coin<CoinB>(&owner);
 
-        let source_addr = signer::address_of(&source);
-        let user_addr = signer::address_of(&user1);
+        let source_addr = signer::address_of(&owner);
+        let user_addr = signer::address_of(&account1);
 
-        managed_coin::mint<CoinA>(&source, user_addr, 100);
+        managed_coin::mint<CoinA>(&owner, user_addr, 100);
         assert!(coin::balance<CoinA>(user_addr) == 100, 0);
         assert!(coin::balance<CoinA>(source_addr) == 0, 0);
 
-        managed_coin::mint<CoinB>(&source, user_addr, 100);
+        managed_coin::mint<CoinB>(&owner, user_addr, 100);
         assert!(coin::balance<CoinB>(user_addr) == 100, 0);
 
-        deposit<CoinA>(&user1, 30);
+        deposit<CoinA>(&account1, 30);
         assert!(coin::balance<CoinA>(user_addr) == 70, 0);
         assert!(collateral_coin::balance<CoinA>(user_addr) == 30, 0);
         assert!(balance<CoinA>() == 30, 0);
 
-        deposit<CoinA>(&user1, 10);
+        deposit<CoinA>(&account1, 10);
         assert!(coin::balance<CoinA>(user_addr) == 60, 0);
         assert!(collateral_coin::balance<CoinA>(user_addr) == 40, 0);
         assert!(balance<CoinA>() == 40, 0);
 
-        deposit<CoinB>(&user1, 70);
+        deposit<CoinB>(&account1, 70);
         assert!(coin::balance<CoinB>(user_addr) == 30, 0);
         assert!(collateral_coin::balance<CoinB>(user_addr) == 70, 0);
         assert!(balance<CoinB>() == 70, 0);
 
-        withdraw<CoinA>(&user1, 40);
+        withdraw<CoinA>(&account1, 40);
         assert!(coin::balance<CoinA>(user_addr) == 100, 0);
         assert!(collateral_coin::balance<CoinA>(user_addr) == 0, 0);
         assert!(balance<CoinA>() == 0, 0);
         assert!(balance<CoinB>() == 70, 0);
     }
 
-    #[test(source=@leizd, user1 = @0x1, user2 = @0x2)]
-    public entry fun test_borrow(source: signer, user1: signer, user2: signer) acquires Pool {
+    #[test(owner=@leizd, account1 = @0x11, account2 = @0x2)]
+    public entry fun test_borrow(owner: signer, account1: signer, account2: signer) acquires Pool {
+        account::create_account(signer::address_of(&owner));
+        account::create_account(signer::address_of(&account1));
+        account::create_account(signer::address_of(&account2));
         
         managed_coin::initialize<CoinA>(
-            &source,
+            &owner,
             b"CoinA",
             b"AAA",
             18,
             true
         );
         assert!(coin::is_coin_initialized<CoinA>(), 0);
-        managed_coin::register<CoinA>(&user1);
-        managed_coin::register<CoinA>(&user2);
+        managed_coin::register<CoinA>(&account1);
+        managed_coin::register<CoinA>(&account2);
 
         managed_coin::initialize<CoinB>(
-            &source,
+            &owner,
             b"CoinB",
             b"BBB",
             18,
             true
         );
         assert!(coin::is_coin_initialized<CoinB>(), 0);
-        managed_coin::register<CoinB>(&user1);
-        managed_coin::register<CoinB>(&user2);
+        managed_coin::register<CoinB>(&account1);
+        managed_coin::register<CoinB>(&account2);
 
-        list_new_coin<CoinA>(&source);
-        list_new_coin<CoinB>(&source);
+        list_new_coin<CoinA>(&owner);
+        list_new_coin<CoinB>(&owner);
 
-        let user1_addr = signer::address_of(&user1);
-        managed_coin::mint<CoinA>(&source, user1_addr, 100);
+        let user1_addr = signer::address_of(&account1);
+        managed_coin::mint<CoinA>(&owner, user1_addr, 100);
         assert!(coin::balance<CoinA>(user1_addr) == 100, 0);
         
 
-        let user2_addr = signer::address_of(&user2);
-        managed_coin::mint<CoinB>(&source, user2_addr, 100);
+        let user2_addr = signer::address_of(&account2);
+        managed_coin::mint<CoinB>(&owner, user2_addr, 100);
         assert!(coin::balance<CoinB>(user2_addr) == 100, 0);
         
-        deposit<CoinA>(&user1, 30);
+        deposit<CoinA>(&account1, 30);
         assert!(coin::balance<CoinA>(user1_addr) == 70, 0);
 
-        deposit<CoinB>(&user2, 50);
+        deposit<CoinB>(&account2, 50);
         assert!(coin::balance<CoinB>(user2_addr) == 50, 0);
         
-        // borrow<CoinA>(&user2, 10);
+        // borrow<CoinA>(&account2, 10);
         // assert!(coin::balance<CoinA>(user2_addr) == 10, 0);
         // assert!(coin::balance<CoinB>(user2_addr) == 50, 0);
     }

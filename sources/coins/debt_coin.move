@@ -3,7 +3,8 @@ module leizd::debt_coin {
     use std::string;
     use std::signer;
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability};
-    
+    use aptos_framework::coins;
+
     friend leizd::asset_pool;
     friend leizd::pair_pool;
     friend leizd::vault;
@@ -42,7 +43,7 @@ module leizd::debt_coin {
         let caps = borrow_global<Capabilities<Debt<T>>>(@leizd);
         let account_addr = signer::address_of(account);
         if (!coin::is_account_registered<Debt<T>>(account_addr)) {
-            coin::register<Debt<T>>(account);
+            coins::register<Debt<T>>(account);
         };
 
         let coin_minted = coin::mint(amount, &caps.mint_cap);

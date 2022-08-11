@@ -1,3 +1,4 @@
+#[test_only]
 module leizd::integration {
 
     #[test_only]
@@ -7,6 +8,7 @@ module leizd::integration {
 
     #[test_only]
     use aptos_std::signer;
+    use aptos_framework::account;
     use aptos_framework::coin;
     use aptos_framework::managed_coin;
     use leizd::asset_pool;
@@ -18,7 +20,9 @@ module leizd::integration {
 
     #[test(owner=@leizd)]
     public entry fun test_init_by_owner(owner: signer) {
+
         // init coins
+        account::create_account(signer::address_of(&owner));
         init_usdc(&owner);
         init_weth(&owner);
 
@@ -30,8 +34,11 @@ module leizd::integration {
         assert!(asset_pool::balance<WETH>() == 0, 0);
     }
 
-    #[test(owner=@leizd, account1=@0x1)]
+    #[test(owner=@leizd, account1=@0x11)]
     public entry fun test_deposit_asset(owner: signer, account1: signer) {
+        account::create_account(signer::address_of(&owner));
+        account::create_account(signer::address_of(&account1));
+
         init_usdc(&owner);
         asset_pool::list_new_coin<USDC>(&owner);
 
@@ -46,8 +53,11 @@ module leizd::integration {
         assert!(collateral_coin::balance<USDC>(account1_addr) == 10, 0);
     }
 
-    #[test(owner=@leizd, account1=@0x1)]
+    #[test(owner=@leizd, account1=@0x11)]
     public entry fun test_deposit_to_vault(owner: signer, account1: signer) {
+        account::create_account(signer::address_of(&owner));
+        account::create_account(signer::address_of(&account1));
+
         init_usdc(&owner);
 
         // init bridge coin
@@ -64,8 +74,11 @@ module leizd::integration {
         assert!(vault::collateral_of<USDC>(account1_addr) == 10, 0);
     }
 
-    #[test(owner=@leizd, account1=@0x1)]
+    #[test(owner=@leizd, account1=@0x11)]
     public entry fun test_borrow_zusd(owner: signer, account1: signer) {
+        account::create_account(signer::address_of(&owner));
+        account::create_account(signer::address_of(&account1));
+
         init_usdc(&owner);
 
         vault::initialize(&owner);
@@ -82,8 +95,11 @@ module leizd::integration {
         assert!(vault::debt_zusd_of<USDC>(account1_addr) == 1008, 0);
     }
 
-    #[test(owner=@leizd, account1=@0x1)]
+    #[test(owner=@leizd, account1=@0x11)]
     public entry fun test_withdraw_from_vault(owner: signer, account1: signer) {
+        account::create_account(signer::address_of(&owner));
+        account::create_account(signer::address_of(&account1));
+
         init_usdc(&owner);
 
         vault::initialize(&owner);
@@ -100,8 +116,12 @@ module leizd::integration {
         assert!(vault::collateral_of<USDC>(account1_addr) == 1, 0);
     }
 
-    #[test(owner=@leizd, account1=@0x1, account2=@0x2)]
+    #[test(owner=@leizd, account1=@0x11, account2=@0x2)]
     public entry fun test_deposit_bridge_coin(owner: signer, account1: signer, account2: signer) {
+        account::create_account(signer::address_of(&owner));
+        account::create_account(signer::address_of(&account1));
+        account::create_account(signer::address_of(&account2));
+
         init_usdc(&owner);
         init_uni(&owner);
         asset_pool::list_new_coin<USDC>(&owner);
@@ -126,8 +146,12 @@ module leizd::integration {
         assert!(zusd::balance(account1_addr) == 20, 0);
     }
 
-    #[test(owner=@leizd, account1=@0x1, account2=@0x2)]
+    #[test(owner=@leizd, account1=@0x11, account2=@0x2)]
     public entry fun test_withdraw_bridge_coin(owner: signer, account1: signer, account2: signer) {
+        account::create_account(signer::address_of(&owner));
+        account::create_account(signer::address_of(&account1));
+        account::create_account(signer::address_of(&account2));
+
         init_usdc(&owner);
         init_uni(&owner);
         asset_pool::list_new_coin<USDC>(&owner);
@@ -151,8 +175,12 @@ module leizd::integration {
         assert!(pair_pool::balance<USDC>() == 0, 0);
     }
 
-    #[test(owner=@leizd, account1=@0x1, account2=@0x2)]
+    #[test(owner=@leizd, account1=@0x11, account2=@0x2)]
     public entry fun test_borrow_uni_by_weth(owner: signer, account1: signer, account2: signer) {
+        account::create_account(signer::address_of(&owner));
+        account::create_account(signer::address_of(&account1));
+        account::create_account(signer::address_of(&account2));
+
         init_usdc(&owner);
         init_uni(&owner);
         init_weth(&owner);
@@ -188,8 +216,12 @@ module leizd::integration {
         assert!(debt_coin::balance<WETH>(account2_addr) == 10, 0);
     }
 
-    #[test(owner=@leizd, account1=@0x1, account2=@0x2)]
+    #[test(owner=@leizd, account1=@0x11, account2=@0x2)]
     public entry fun test_repay_uni_for_weth(owner: signer, account1: signer, account2: signer) {
+        account::create_account(signer::address_of(&owner));
+        account::create_account(signer::address_of(&account1));
+        account::create_account(signer::address_of(&account2));
+
         init_usdc(&owner);
         init_uni(&owner);
         init_weth(&owner);

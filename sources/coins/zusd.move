@@ -3,6 +3,7 @@ module leizd::zusd {
     use std::string;
     use aptos_std::signer;
     use aptos_framework::coin::{Self, MintCapability, BurnCapability};
+    use aptos_framework::coins;
 
     friend leizd::vault;
 
@@ -30,7 +31,7 @@ module leizd::zusd {
     public(friend) fun mint(dest: &signer, amount: u64) acquires Capabilities {
         let dest_addr = signer::address_of(dest);
         if (!coin::is_account_registered<ZUSD>(dest_addr)) {
-            coin::register<ZUSD>(dest);
+            coins::register<ZUSD>(dest);
         };
 
         let caps = borrow_global<Capabilities<ZUSD>>(@leizd);
