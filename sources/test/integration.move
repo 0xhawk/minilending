@@ -9,6 +9,7 @@ module leizd::integration {
     #[test_only]
     use aptos_std::signer;
     use aptos_framework::account;
+    use aptos_framework::timestamp;
     use aptos_framework::coin;
     use aptos_framework::managed_coin;
     use leizd::asset_pool;
@@ -34,10 +35,11 @@ module leizd::integration {
         assert!(asset_pool::balance<WETH>() == 0, 0);
     }
 
-    #[test(owner=@leizd, account1=@0x11)]
-    public entry fun test_deposit_asset(owner: signer, account1: signer) {
+    #[test(owner=@leizd, account1=@0x11, aptos_framework=@aptos_framework)]
+    public entry fun test_deposit_asset(owner: signer, account1: signer, aptos_framework: signer) {
         account::create_account(signer::address_of(&owner));
         account::create_account(signer::address_of(&account1));
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
 
         init_usdc(&owner);
         asset_pool::list_new_coin<USDC>(&owner);
@@ -116,11 +118,12 @@ module leizd::integration {
         assert!(vault::collateral_of<USDC>(account1_addr) == 1, 0);
     }
 
-    #[test(owner=@leizd, account1=@0x11, account2=@0x2)]
-    public entry fun test_deposit_bridge_coin(owner: signer, account1: signer, account2: signer) {
+    #[test(owner=@leizd, account1=@0x11, account2=@0x2, aptos_framework=@aptos_framework)]
+    public entry fun test_deposit_bridge_coin(owner: signer, account1: signer, account2: signer, aptos_framework: signer) {
         account::create_account(signer::address_of(&owner));
         account::create_account(signer::address_of(&account1));
         account::create_account(signer::address_of(&account2));
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
 
         init_usdc(&owner);
         init_uni(&owner);
@@ -146,11 +149,12 @@ module leizd::integration {
         assert!(zusd::balance(account1_addr) == 20, 0);
     }
 
-    #[test(owner=@leizd, account1=@0x11, account2=@0x2)]
-    public entry fun test_withdraw_bridge_coin(owner: signer, account1: signer, account2: signer) {
+    #[test(owner=@leizd, account1=@0x11, account2=@0x2, aptos_framework=@aptos_framework)]
+    public entry fun test_withdraw_bridge_coin(owner: signer, account1: signer, account2: signer, aptos_framework: signer) {
         account::create_account(signer::address_of(&owner));
         account::create_account(signer::address_of(&account1));
         account::create_account(signer::address_of(&account2));
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
 
         init_usdc(&owner);
         init_uni(&owner);
@@ -175,11 +179,12 @@ module leizd::integration {
         assert!(pair_pool::balance<USDC>() == 0, 0);
     }
 
-    #[test(owner=@leizd, account1=@0x11, account2=@0x2)]
-    public entry fun test_borrow_uni_by_weth(owner: signer, account1: signer, account2: signer) {
+    #[test(owner=@leizd, account1=@0x11, account2=@0x2, aptos_framework=@aptos_framework)]
+    public entry fun test_borrow_uni_by_weth(owner: signer, account1: signer, account2: signer, aptos_framework: signer) {
         account::create_account(signer::address_of(&owner));
         account::create_account(signer::address_of(&account1));
         account::create_account(signer::address_of(&account2));
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
 
         init_usdc(&owner);
         init_uni(&owner);
@@ -216,11 +221,12 @@ module leizd::integration {
         assert!(debt_coin::balance<WETH>(account2_addr) == 10, 0);
     }
 
-    #[test(owner=@leizd, account1=@0x11, account2=@0x2)]
-    public entry fun test_repay_uni_for_weth(owner: signer, account1: signer, account2: signer) {
+    #[test(owner=@leizd, account1=@0x11, account2=@0x2, aptos_framework=@aptos_framework)]
+    public entry fun test_repay_uni_for_weth(owner: signer, account1: signer, account2: signer, aptos_framework: signer) {
         account::create_account(signer::address_of(&owner));
         account::create_account(signer::address_of(&account1));
         account::create_account(signer::address_of(&account2));
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
 
         init_usdc(&owner);
         init_uni(&owner);

@@ -62,44 +62,11 @@ module leizd::asset_pool {
         });
     }
 
-    // TODO: enable timestamp
-    fun accrue_interest<T>() acquires State, Pool {
-        let state = borrow_global_mut<State<T>>(@leizd);
-        let now = timestamp::now_microseconds();
-
-        if (state.last_timestamp == 0) {
-            state.last_timestamp = now;
-            return
-        };
-
-        if (state.last_timestamp == now) {
-            return
-        };
-
-        let interest = interest_rate_model::interest_rate<T>(now);
-        let protocol_share_fee = 0; // TODO
-
-        let pool = borrow_global_mut<Pool<T>>(@leizd);
-        let total_borrowed_cached = pool.total_borrowed;
-        let protocol_fees_cached = state.protocol_fees;
-
-        let accrued_interest = total_borrowed_cached * interest / DECIMAL_PRECISION;
-        let protocol_share = accrued_interest * protocol_share_fee / DECIMAL_PRECISION;
-        let new_protocol_fees = protocol_fees_cached + protocol_share;
-        let depositors_share = accrued_interest - protocol_share;
-
-        pool.total_borrowed = total_borrowed_cached + accrued_interest;
-        pool.total_deposited = pool.total_deposited + depositors_share;
-        state.protocol_fees = new_protocol_fees;
-        state.last_timestamp = now;
-    }
-
-    public entry fun deposit<T>(account: &signer, amount: u64) acquires Pool {
+    public entry fun deposit<T>(account: &signer, amount: u64) acquires Pool, State {
         assert!(amount > 0, EZERO_AMOUNT);
         assert!(reserve_data::is_active<T>(), ENOT_POOL_IS_INACTIVE);
 
-        // TODO: update state
-        // TODO: update interest rates
+        accrue_interest<T>();
 
         let pool_ref = borrow_global_mut<Pool<T>>(@leizd);
 
@@ -133,8 +100,10 @@ module leizd::asset_pool {
         collateral_coin::burn<T>(account, amount);
     }
 
-    public fun borrow<C,D>(account: &signer, amount: u64) acquires Pool {
+    public fun borrow<C,D>(account: &signer, amount: u64) acquires Pool, State {
         
+        accrue_interest<D>();
+
         let account_addr = signer::address_of(account);
         validate_borrow<C,D>(account_addr, amount);
 
@@ -161,6 +130,37 @@ module leizd::asset_pool {
         pair_pool::deposit<C>(account, amount);
 
         debt_coin::burn<D>(account, amount);
+    }
+
+    fun accrue_interest<T>() acquires State, Pool {
+        let state = borrow_global_mut<State<T>>(@leizd);
+        let now = timestamp::now_microseconds();
+
+        if (state.last_timestamp == 0) {
+            state.last_timestamp = now;
+            return
+        };
+
+        if (state.last_timestamp == now) {
+            return
+        };
+
+        let interest = interest_rate_model::interest_rate<T>(now);
+        let protocol_share_fee = 0; // TODO
+
+        let pool = borrow_global_mut<Pool<T>>(@leizd);
+        let total_borrowed_cached = pool.total_borrowed;
+        let protocol_fees_cached = state.protocol_fees;
+
+        let accrued_interest = total_borrowed_cached * interest / DECIMAL_PRECISION;
+        let protocol_share = accrued_interest * protocol_share_fee / DECIMAL_PRECISION;
+        let new_protocol_fees = protocol_fees_cached + protocol_share;
+        let depositors_share = accrued_interest - protocol_share;
+
+        pool.total_borrowed = total_borrowed_cached + accrued_interest;
+        pool.total_deposited = pool.total_deposited + depositors_share;
+        state.protocol_fees = new_protocol_fees;
+        state.last_timestamp = now;
     }
 
     fun validate_borrow<C,D>(account_addr: address, amount: u64) acquires Pool {
@@ -199,10 +199,11 @@ module leizd::asset_pool {
     #[test_only]
     use aptos_framework::managed_coin;
 
-    #[test(owner=@leizd, account1 = @0x11)]
-    public entry fun test_deposit_and_withdraw(owner: signer, account1: signer) acquires Pool {
+    #[test(owner=@leizd, account1 = @0x11, aptos_framework=@aptos_framework)]
+    public entry fun test_deposit_and_withdraw(owner: signer, account1: signer, aptos_framework: signer) acquires Pool, State {
         account::create_account(signer::address_of(&owner));
         account::create_account(signer::address_of(&account1));
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
 
         managed_coin::initialize<CoinA>(
             &owner,
@@ -261,11 +262,12 @@ module leizd::asset_pool {
         assert!(balance<CoinB>() == 70, 0);
     }
 
-    #[test(owner=@leizd, account1 = @0x11, account2 = @0x2)]
-    public entry fun test_borrow(owner: signer, account1: signer, account2: signer) acquires Pool {
+    #[test(owner=@leizd, account1 = @0x11, account2 = @0x2, aptos_framework= @aptos_framework)]
+    public entry fun test_borrow(owner: signer, account1: signer, account2: signer, aptos_framework: signer) acquires Pool, State {
         account::create_account(signer::address_of(&owner));
         account::create_account(signer::address_of(&account1));
         account::create_account(signer::address_of(&account2));
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
         
         managed_coin::initialize<CoinA>(
             &owner,
