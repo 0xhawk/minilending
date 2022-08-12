@@ -1,4 +1,4 @@
-module leizd::asset_pool {
+module leizd::pool {
 
     use std::signer;
     use aptos_framework::coin;
@@ -6,13 +6,10 @@ module leizd::asset_pool {
     use leizd::collateral_only;
     use leizd::debt;
     use leizd::repository;
+    use leizd::pool_type::{Asset,Shadow};
 
     // TODO: util
     const U64_MAX: u64 = 18446744073709551615;
-
-    struct Asset {}
-
-    struct Shadow {}
 
     struct Pool<phantom C, phantom P> has key {
         coin: coin::Coin<C>
@@ -92,18 +89,18 @@ module leizd::asset_pool {
             collateral_share = to_share(
                 (amount as u128),
                 asset_storage_ref.total_collateral_only_deposits,
-                collateral_only::supply<C>()
+                collateral_only::supply<C,P>()
             );
             asset_storage_ref.total_collateral_only_deposits = asset_storage_ref.total_deposits + (amount as u128);
-            collateral_only::mint<C>(account, collateral_share); 
+            collateral_only::mint<C,P>(account, collateral_share); 
         } else {
             collateral_share = to_share(
                 (amount as u128),
                 asset_storage_ref.total_deposits,
-                collateral::supply<C>()
+                collateral::supply<C,P>()
             );
             asset_storage_ref.total_deposits = asset_storage_ref.total_deposits + (amount as u128);
-            collateral::mint<C>(account, collateral_share);
+            collateral::mint<C,P>(account, collateral_share);
         };
 
         let withdrawn = coin::withdraw<C>(account, amount);
@@ -112,27 +109,27 @@ module leizd::asset_pool {
         (collateral_amount, collateral_share)
     }
 
-    public entry fun withdraw<C>(account: &signer, amount: u64, is_collateral_only: bool): (u64, u64) acquires Pool, Storage {
+    public entry fun withdraw<C,P>(account: &signer, amount: u64, is_collateral_only: bool): (u64, u64) acquires Pool, Storage {
         let account_addr = signer::address_of(account);
         // TODO: accrue interest
 
         let burned_share;
         let withdrawn_amount;
         if (amount == U64_MAX) {
-            burned_share = collateral_balance<C>(account_addr, is_collateral_only);
+            burned_share = collateral_balance<C,P>(account_addr, is_collateral_only);
             withdrawn_amount = 0; // TODO
         } else {
-            burned_share = collateral_balance<C>(account_addr, is_collateral_only);
+            burned_share = collateral_balance<C,P>(account_addr, is_collateral_only);
             withdrawn_amount = amount;
         };
 
         let asset_storage_ref = borrow_global_mut<Storage<C,Asset>>(@leizd);
         if (is_collateral_only) {
             asset_storage_ref.total_collateral_only_deposits = asset_storage_ref.total_collateral_only_deposits - (withdrawn_amount as u128);
-            collateral_only::burn<C>(account, burned_share);
+            collateral_only::burn<C,P>(account, burned_share);
         } else {
             asset_storage_ref.total_deposits = asset_storage_ref.total_deposits - (withdrawn_amount as u128);
-            collateral::burn<C>(account, burned_share);
+            collateral::burn<C,P>(account, burned_share);
         };
 
         let pool_ref = borrow_global_mut<Pool<C,Asset>>(@leizd);
@@ -144,7 +141,7 @@ module leizd::asset_pool {
         (burned_share, withdrawn_amount)
     }
 
-    public entry fun borrow<C>(account: &signer, amount: u64) acquires Pool, Storage {
+    public entry fun borrow<C,P>(account: &signer, amount: u64) acquires Pool, Storage {
         let account_addr = signer::address_of(account);
         // TODO: accrue interest
         // TODO: borrow possible
@@ -158,7 +155,7 @@ module leizd::asset_pool {
         asset_storage_ref.total_borrow_amount = asset_storage_ref.total_borrow_amount + (amount as u128) + fee;
         // TODO: transfer protocol fee to treasury
 
-        debt::mint<C>(account, debt_share);
+        debt::mint<C,P>(account, debt_share);
 
         let pool_ref = borrow_global_mut<Pool<C,Asset>>(@leizd);
         let deposited = coin::extract(&mut pool_ref.coin, amount);
@@ -183,11 +180,11 @@ module leizd::asset_pool {
         // TODO
     }
 
-    fun collateral_balance<C>(account_addr: address, is_collateral_only: bool): u64 {
+    fun collateral_balance<C,P>(account_addr: address, is_collateral_only: bool): u64 {
         if (is_collateral_only) {
-            collateral_only::balance_of<C>(account_addr)
+            collateral_only::balance_of<C,P>(account_addr)
         } else {
-            collateral::balance_of<C>(account_addr)
+            collateral::balance_of<C,P>(account_addr)
         }
     }
 }
