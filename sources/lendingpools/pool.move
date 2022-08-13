@@ -127,17 +127,21 @@ module leizd::pool {
         let pool_ref = borrow_global_mut<Pool<C>>(@leizd);
         let asset_storage_ref = borrow_global_mut<Storage<C,Asset>>(@leizd);
 
-        withdraw_internal<C,Asset>(account, amount, is_collateral_only, pool_ref, asset_storage_ref);
+        let deposited = coin::extract(&mut pool_ref.asset, amount);
+        coin::deposit<C>(signer::address_of(account), deposited);
+        withdraw_internal<C,Asset>(account, amount, is_collateral_only, asset_storage_ref);
     }
 
     public entry fun withdraw_shadow<C>(account: &signer, amount: u64, is_collateral_only: bool) acquires Pool, Storage { 
         let pool_ref = borrow_global_mut<Pool<C>>(@leizd);
         let asset_storage_ref = borrow_global_mut<Storage<C,Shadow>>(@leizd);
 
-        withdraw_internal<C,Shadow>(account, amount, is_collateral_only, pool_ref, asset_storage_ref);
+        let deposited = coin::extract(&mut pool_ref.shadow, amount);
+        coin::deposit<ZUSD>(signer::address_of(account), deposited);
+        withdraw_internal<C,Shadow>(account, amount, is_collateral_only, asset_storage_ref);
     }
 
-    fun withdraw_internal<C,P>(account: &signer, amount: u64, is_collateral_only: bool, pool_ref: &mut Pool<C>, asset_storage_ref: &mut Storage<C,P>): (u64, u64) {
+    fun withdraw_internal<C,P>(account: &signer, amount: u64, is_collateral_only: bool, asset_storage_ref: &mut Storage<C,P>): (u64, u64) {
         let account_addr = signer::address_of(account);
         // TODO: accrue interest
 
@@ -158,9 +162,6 @@ module leizd::pool {
             asset_storage_ref.total_deposits = asset_storage_ref.total_deposits - (withdrawn_amount as u128);
             collateral::burn<C,P>(account, burned_share);
         };
-
-        let deposited = coin::extract(&mut pool_ref.asset, amount);
-        coin::deposit<C>(account_addr, deposited);
 
         // TODO is solvent
 
@@ -322,8 +323,31 @@ module leizd::pool {
         deposit<WETH>(&account1, 800000, false, false);
 
         withdraw<WETH>(&account1, 800000, false, false);
-
         assert!(coin::balance<WETH>(account1_addr) == 1000000, 0);
         assert!(total_deposits<WETH,Asset>() == 0, 0);
+    }
+
+    #[test(owner=@leizd,account1=@0x111)]
+    public entry fun test_withdraw_shadow(owner: signer, account1: signer) acquires Pool, Storage {
+        let owner_addr = signer::address_of(&owner);
+        let account1_addr = signer::address_of(&account1);
+        account::create_account(owner_addr);
+        account::create_account(account1_addr);
+        common::init_weth(&owner);
+        trove::initialize(&owner);
+        managed_coin::register<WETH>(&account1);
+        managed_coin::mint<WETH>(&owner, account1_addr, 1000000);
+        assert!(coin::balance<WETH>(account1_addr) == 1000000, 0);
+        managed_coin::register<ZUSD>(&account1);
+        zusd::mint_for_test(&account1, 1000000);
+        assert!(coin::balance<ZUSD>(account1_addr) == 1000000, 0);
+
+        init_pool<WETH>(&owner);
+        deposit<WETH>(&account1, 800000, false, true);
+
+        withdraw<WETH>(&account1, 800000, false, true);
+        assert!(coin::balance<WETH>(account1_addr) == 1000000, 0);
+        assert!(total_deposits<WETH,Shadow>() == 0, 0);
+        assert!(coin::balance<ZUSD>(account1_addr) == 1000000, 0);
     }
 }
