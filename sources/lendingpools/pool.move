@@ -64,6 +64,14 @@ module leizd::pool {
         };
     }
 
+    public entry fun withdraw<C>(account: &signer, amount: u64, is_collateral_only: bool, is_shadow: bool) acquires Pool, Storage {
+        if (is_shadow) {
+            withdraw_shadow<C>(account, amount, is_collateral_only);
+        } else {
+            withdraw_asset<C>(account, amount, is_collateral_only);
+        };
+    }
+
     public entry fun deposit_asset<C>(account: &signer, amount: u64, is_collateral_only: bool): (u64, u64) acquires Pool, Storage {
         // TODO: accrue interest
 
@@ -109,7 +117,21 @@ module leizd::pool {
         (collateral_amount, collateral_share)
     }
 
-    public entry fun withdraw<C,P>(account: &signer, amount: u64, is_collateral_only: bool): (u64, u64) acquires Pool, Storage {
+    public entry fun withdraw_asset<C>(account: &signer, amount: u64, is_collateral_only: bool) acquires Pool, Storage {
+        let pool_ref = borrow_global_mut<Pool<C,Asset>>(@leizd);
+        let asset_storage_ref = borrow_global_mut<Storage<C,Asset>>(@leizd);
+
+        withdraw_internal<C,Asset>(account, amount, is_collateral_only, pool_ref, asset_storage_ref);
+    }
+
+    public entry fun withdraw_shadow<C>(account: &signer, amount: u64, is_collateral_only: bool) acquires Pool, Storage { 
+        let pool_ref = borrow_global_mut<Pool<C,Shadow>>(@leizd);
+        let asset_storage_ref = borrow_global_mut<Storage<C,Shadow>>(@leizd);
+
+        withdraw_internal<C,Shadow>(account, amount, is_collateral_only, pool_ref, asset_storage_ref);
+    }
+
+    fun withdraw_internal<C,P>(account: &signer, amount: u64, is_collateral_only: bool, pool_ref: &mut Pool<C,P>, asset_storage_ref: &mut Storage<C,P>): (u64, u64) {
         let account_addr = signer::address_of(account);
         // TODO: accrue interest
 
@@ -123,7 +145,6 @@ module leizd::pool {
             withdrawn_amount = amount;
         };
 
-        let asset_storage_ref = borrow_global_mut<Storage<C,Asset>>(@leizd);
         if (is_collateral_only) {
             asset_storage_ref.total_collateral_only_deposits = asset_storage_ref.total_collateral_only_deposits - (withdrawn_amount as u128);
             collateral_only::burn<C,P>(account, burned_share);
@@ -132,7 +153,6 @@ module leizd::pool {
             collateral::burn<C,P>(account, burned_share);
         };
 
-        let pool_ref = borrow_global_mut<Pool<C,Asset>>(@leizd);
         let deposited = coin::extract(&mut pool_ref.coin, amount);
         coin::deposit<C>(account_addr, deposited);
 
@@ -141,14 +161,28 @@ module leizd::pool {
         (burned_share, withdrawn_amount)
     }
 
-    public entry fun borrow<C,P>(account: &signer, amount: u64) acquires Pool, Storage {
+
+    public entry fun borrow_asset<C>(account: &signer, amount: u64) acquires Pool, Storage {
+        let pool_ref = borrow_global_mut<Pool<C,Asset>>(@leizd);
+        let asset_storage_ref = borrow_global_mut<Storage<C,Asset>>(@leizd);
+
+        borrow_internal<C,Asset>(account, amount, pool_ref, asset_storage_ref);
+    }
+
+    public entry fun borrow_shadow<C>(account: &signer, amount: u64) acquires Pool, Storage {
+        let pool_ref = borrow_global_mut<Pool<C,Shadow>>(@leizd);
+        let asset_storage_ref = borrow_global_mut<Storage<C,Shadow>>(@leizd);
+
+        borrow_internal<C,Shadow>(account, amount, pool_ref, asset_storage_ref);
+    }
+
+
+    fun borrow_internal<C,P>(account: &signer, amount: u64, pool_ref: &mut Pool<C,P>, asset_storage_ref: &mut Storage<C,P>) {
         let account_addr = signer::address_of(account);
         // TODO: accrue interest
         // TODO: borrow possible
         // TODO: liquidity check
 
-        let asset_storage_ref = borrow_global_mut<Storage<C,Asset>>(@leizd);
-        
         let debt_share = 0; // TODO
         let fee = repository::entry_fee();
 
@@ -157,7 +191,6 @@ module leizd::pool {
 
         debt::mint<C,P>(account, debt_share);
 
-        let pool_ref = borrow_global_mut<Pool<C,Asset>>(@leizd);
         let deposited = coin::extract(&mut pool_ref.coin, amount);
         coin::deposit<C>(account_addr, deposited);
 
