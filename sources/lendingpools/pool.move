@@ -18,7 +18,7 @@ module leizd::pool {
     struct Storage<phantom C, phantom P> has key {
         total_deposits: u128,
         total_collateral_only_deposits: u128,
-        total_borrow_amount: u128
+        total_borrows: u128
     }
 
     // TODO: friend
@@ -32,12 +32,12 @@ module leizd::pool {
         move_to(owner, Storage<C,Asset> {
             total_deposits: 0,
             total_collateral_only_deposits: 0,
-            total_borrow_amount: 0
+            total_borrows: 0
         });
         move_to(owner, Storage<C,Shadow> {
             total_deposits: 0,
             total_collateral_only_deposits: 0,
-            total_borrow_amount: 0
+            total_borrows: 0
         });
 
         collateral::initialize<C>(owner);
@@ -71,6 +71,15 @@ module leizd::pool {
             withdraw_asset<C>(account, amount, is_collateral_only);
         };
     }
+
+    public entry fun borrow<C>(account: &signer, amount: u64, is_shadow: bool) acquires Pool, Storage {
+        if (is_shadow) {
+            borrow_shadow<C>(account, amount);
+        } else {
+            borrow_asset<C>(account, amount);
+        };
+    }
+    
 
     public entry fun deposit_asset<C>(account: &signer, amount: u64, is_collateral_only: bool): (u64, u64) acquires Pool, Storage {
         // TODO: accrue interest
@@ -186,7 +195,7 @@ module leizd::pool {
         let debt_share = 0; // TODO
         let fee = repository::entry_fee();
 
-        asset_storage_ref.total_borrow_amount = asset_storage_ref.total_borrow_amount + (amount as u128) + fee;
+        asset_storage_ref.total_borrows = asset_storage_ref.total_borrows + (amount as u128) + fee;
         // TODO: transfer protocol fee to treasury
 
         debt::mint<C,P>(account, debt_share);
@@ -219,5 +228,17 @@ module leizd::pool {
         } else {
             collateral::balance_of<C,P>(account_addr)
         }
+    }
+
+    public fun total_deposits<C,P>(): u128 acquires Storage {
+        borrow_global<Storage<C,P>>(@leizd).total_deposits
+    }
+
+    public fun total_conly_deposits<C,P>(): u128 acquires Storage {
+        borrow_global<Storage<C,P>>(@leizd).total_collateral_only_deposits
+    }
+
+    public fun total_borrows<C,P>(): u128 acquires Storage {
+        borrow_global<Storage<C,P>>(@leizd).total_borrows
     }
 }
