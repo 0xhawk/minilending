@@ -7,9 +7,17 @@ module leizd::trove {
         coin: coin::Coin<C>,
     }
 
-    public fun open_trove(account: &signer, amount: u64) {
+    public entry fun initialize(owner: &signer) {
+        zusd::initialize(owner);
+    }
+
+    public fun open_trove<C>(account: &signer, amount: u64) {
 
         // TODO: active pool -> increate ZUSD debt
         zusd::mint(account, amount);
+        
+        move_to(account, Trove<C> {
+            coin: coin::zero<C>()
+        });
     }
 }
