@@ -8,8 +8,10 @@ module leizd::pool {
     use leizd::repository;
     use leizd::pool_type::{Asset,Shadow};
     use leizd::math;
+    use leizd::treasury;
 
     const U64_MAX: u64 = 18446744073709551615;
+    const DECIMAL_PRECISION: u128 = 1000000000000000000;
 
     struct Pool<phantom C> has key {
         asset: coin::Coin<C>,
@@ -27,6 +29,7 @@ module leizd::pool {
         collateral::initialize<C>(owner);
         collateral_only::initialize<C>(owner);
         debt::initialize<C>(owner);
+        treasury::initialize<C>(owner);
         move_to(owner, Pool<C> {
             asset: coin::zero<C>(),
             shadow: coin::zero<ZUSD>()
@@ -154,6 +157,11 @@ module leizd::pool {
         let pool_ref = borrow_global_mut<Pool<C>>(@leizd);
         let asset_storage_ref = borrow_global_mut<Storage<C,Asset>>(@leizd);
 
+        let entry_fee = repository::entry_fee();
+        let fee = (amount as u128) * entry_fee / DECIMAL_PRECISION;
+        let fee_extracted = coin::extract(&mut pool_ref.asset, (fee as u64));
+        treasury::collect_asset_fee<C>(fee_extracted);
+
         let deposited = coin::extract(&mut pool_ref.asset, amount);
         coin::deposit<C>(account_addr, deposited);
         borrow_internal<C,Asset>(account, amount, asset_storage_ref);
@@ -163,6 +171,11 @@ module leizd::pool {
         let account_addr = signer::address_of(account);
         let pool_ref = borrow_global_mut<Pool<C>>(@leizd);
         let asset_storage_ref = borrow_global_mut<Storage<C,Shadow>>(@leizd);
+
+        let entry_fee = repository::entry_fee();
+        let fee = (amount as u128) * entry_fee / DECIMAL_PRECISION;
+        let fee_extracted = coin::extract(&mut pool_ref.shadow, (fee as u64));
+        treasury::collect_shadow_fee<C>(fee_extracted);
 
         let deposited = coin::extract(&mut pool_ref.shadow, amount);
         coin::deposit<ZUSD>(account_addr, deposited);
@@ -176,9 +189,10 @@ module leizd::pool {
         // TODO: liquidity check
 
         let debt_share = 0; // TODO
-        let fee = repository::entry_fee();
+        let fee = repository::entry_fee(); // TODO
 
         asset_storage_ref.total_borrows = asset_storage_ref.total_borrows + (amount as u128) + fee;
+
         // TODO: transfer protocol fee to treasury
 
         debt::mint<C,P>(account, debt_share);
