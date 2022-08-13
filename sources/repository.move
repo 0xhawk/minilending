@@ -25,6 +25,7 @@ module leizd::repository {
         liquidation_fee: u128
     }
 
+    // TODO: friend
     public entry fun initialize(owner: &signer) {
         move_to(owner, Fees {
             entry_fee: DEFAULT_ENTRY_FEE,
