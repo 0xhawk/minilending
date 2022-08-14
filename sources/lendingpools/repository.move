@@ -1,7 +1,6 @@
 module leizd::repository {
 
     use std::signer;
-    use leizd::interest_rate;
 
     const DECIMAL_PRECISION: u64 = 1000000000000000000;
 
@@ -13,10 +12,9 @@ module leizd::repository {
     const DEFAULT_THRESHOLD: u128 = 1000000000000000000 / 100 * 70 ; // 70%
     
 
-    struct AssetConfig<phantom T> has key {
+    struct AssetConfig<phantom C> has key {
         ltv: u128,
         threshold: u128,
-        interest_rate: interest_rate::Config<T>
     }
 
     struct Fees has drop, key {
@@ -25,7 +23,6 @@ module leizd::repository {
         liquidation_fee: u128
     }
 
-    // TODO: friend
     public entry fun initialize(owner: &signer) {
         move_to(owner, Fees {
             entry_fee: DEFAULT_ENTRY_FEE,
@@ -34,11 +31,10 @@ module leizd::repository {
         });
     }
 
-    public fun new_asset<T>(owner: &signer) {
-        move_to(owner, AssetConfig<T> {
+    public fun new_asset<C>(owner: &signer) {
+        move_to(owner, AssetConfig<C> {
             ltv: DEFAULT_LTV,
             threshold: DEFAULT_THRESHOLD,
-            interest_rate: interest_rate::initialize<T>()
         });
     }
 
@@ -57,5 +53,9 @@ module leizd::repository {
 
     public fun entry_fee(): u128 acquires Fees {
         borrow_global<Fees>(@leizd).entry_fee
+    }
+
+    public fun protocol_share_fee(): u128 acquires Fees {
+        borrow_global<Fees>(@leizd).protocol_share_fee
     }
 }

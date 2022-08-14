@@ -1,5 +1,7 @@
 module leizd::math {
 
+    const DECIMAL_PRECISION: u128 = 1000000000000000000;
+
     public fun to_share(amount: u128, total_amount: u128, total_shares: u128): u64 {
         if (total_shares == 0 || total_amount == 0) {
             (amount as u64)
@@ -41,5 +43,38 @@ module leizd::math {
             result = result + 1;
         };
         (result as u64)
+    }
+
+    public fun utilization(total_deposts: u128, total_borrows: u128): u64 {
+        if (total_deposts == 0 || total_borrows == 0) {
+            0
+        } else {
+            ((total_borrows * DECIMAL_PRECISION / total_deposts) as u64)
+        }
+    }
+
+    public fun max(a: u64, b: u64): u64 {
+        if (a > b) a else b
+    }
+
+    public fun min(a: u64, b: u64): u64 {
+        if (a < b) a else b
+    }
+
+    public fun pow(n: u64, e: u64): u64 {
+        if (e == 0) {
+            1
+        } else if (e == 1) {
+            n
+        } else {
+            let p = pow(n, e / 2);
+            p = p * p;
+            if (e % 2 == 1) {
+                p = p * n;
+                p
+            } else {
+                p
+            }
+        }
     }
 }
