@@ -61,6 +61,14 @@ module leizd::pool {
             borrow_asset<C>(account, amount);
         };
     }
+
+    public entry fun repay<C>(account: &signer, amount: u64, is_shadow: bool) acquires Pool, Storage {
+        if (is_shadow) {
+            repay_shadow<C>(account, amount);
+        } else {
+            repay_asset<C>(account, amount);
+        };
+    }
     
 
     fun deposit_asset<C>(account: &signer, amount: u64, is_collateral_only: bool): (u64, u64) acquires Pool, Storage {
@@ -158,13 +166,13 @@ module leizd::pool {
         let asset_storage_ref = borrow_global_mut<Storage<C,Asset>>(@leizd);
 
         let entry_fee = repository::entry_fee();
-        let fee = (amount as u128) * entry_fee / DECIMAL_PRECISION;
+        let fee = (((amount as u128) * entry_fee / DECIMAL_PRECISION) as u64);
         let fee_extracted = coin::extract(&mut pool_ref.asset, (fee as u64));
         treasury::collect_asset_fee<C>(fee_extracted);
 
         let deposited = coin::extract(&mut pool_ref.asset, amount);
         coin::deposit<C>(account_addr, deposited);
-        borrow_internal<C,Asset>(account, amount, asset_storage_ref);
+        borrow_internal<C,Asset>(account, amount, fee, asset_storage_ref);
     }
 
     fun borrow_shadow<C>(account: &signer, amount: u64) acquires Pool, Storage {
@@ -173,35 +181,71 @@ module leizd::pool {
         let asset_storage_ref = borrow_global_mut<Storage<C,Shadow>>(@leizd);
 
         let entry_fee = repository::entry_fee();
-        let fee = (amount as u128) * entry_fee / DECIMAL_PRECISION;
+        let fee = (((amount as u128) * entry_fee / DECIMAL_PRECISION) as u64);
         let fee_extracted = coin::extract(&mut pool_ref.shadow, (fee as u64));
         treasury::collect_shadow_fee<C>(fee_extracted);
 
         let deposited = coin::extract(&mut pool_ref.shadow, amount);
         coin::deposit<ZUSD>(account_addr, deposited);
-        borrow_internal<C,Shadow>(account, amount, asset_storage_ref);
+        borrow_internal<C,Shadow>(account, amount, fee, asset_storage_ref);
     }
 
 
-    fun borrow_internal<C,P>(account: &signer, amount: u64, asset_storage_ref: &mut Storage<C,P>) {
+    fun borrow_internal<C,P>(account: &signer, amount: u64, fee: u64, asset_storage_ref: &mut Storage<C,P>) {
         // TODO: accrue interest
-        // TODO: borrow possible
-        // TODO: liquidity check
+        // TODO: validate borrow possible liquidity check
 
-        let debt_share = 0; // TODO
-        let fee = repository::entry_fee(); // TODO
-
-        asset_storage_ref.total_borrows = asset_storage_ref.total_borrows + (amount as u128) + fee;
-
-        // TODO: transfer protocol fee to treasury
-
+        let debt_share = math::to_share_roundup(((amount + fee) as u128), asset_storage_ref.total_borrows, debt::supply<C,P>());
+        asset_storage_ref.total_borrows = asset_storage_ref.total_borrows + (amount as u128) + (fee as u128);
         debt::mint<C,P>(account, debt_share);
-
-        // TODO: validate
     }
 
-    public entry fun repay<C>() {
-        // TODO
+    fun repay_asset<C>(account: &signer, amount: u64) acquires Pool, Storage {
+        // TODO: accrue interest
+        let account_addr = signer::address_of(account);
+        let pool_ref = borrow_global_mut<Pool<C>>(@leizd);
+        let asset_storage_ref = borrow_global_mut<Storage<C,Asset>>(@leizd);
+
+        let (repaid_amount, repaid_share) = calc_debt_amount_and_share<C,Asset>(account_addr, asset_storage_ref.total_borrows, amount);
+
+        let withdrawn = coin::withdraw<C>(account, repaid_amount);
+        coin::merge(&mut pool_ref.asset, withdrawn);
+
+        asset_storage_ref.total_borrows = asset_storage_ref.total_borrows - (repaid_amount as u128);
+        debt::burn<C,Asset>(account, repaid_share);
+    }
+
+    fun repay_shadow<C>(account: &signer, amount: u64) acquires Pool, Storage {
+        // TODO: accrue interest
+        let account_addr = signer::address_of(account);
+        let asset_storage_ref = borrow_global_mut<Storage<C,Shadow>>(@leizd);
+        let pool_ref = borrow_global_mut<Pool<C>>(@leizd);
+
+        let (repaid_amount, repaid_share) = calc_debt_amount_and_share<C,Shadow>(account_addr, asset_storage_ref.total_borrows, amount);
+
+        let withdrawn = coin::withdraw<ZUSD>(account, repaid_amount);
+        coin::merge(&mut pool_ref.shadow, withdrawn);
+
+        asset_storage_ref.total_borrows = asset_storage_ref.total_borrows - (repaid_amount as u128);
+        debt::burn<C,Shadow>(account, repaid_share);
+    }
+
+
+    public fun calc_debt_amount_and_share<C,P>(account_addr: address, total_borrows: u128, amount: u64): (u64, u64) {
+        let borrower_debt_share = debt::balance_of<C,P>(account_addr);
+        let debt_supply = debt::supply<C,P>();
+        let max_amount = math::to_amount_roundup((borrower_debt_share as u128), total_borrows, debt_supply);
+
+        let _amount = 0;
+        let _repay_share = 0;
+        if (amount >= max_amount) {
+            _amount = max_amount;
+            _repay_share = borrower_debt_share;
+        } else {
+            _amount = amount;
+            _repay_share = math::to_share((amount as u128), total_borrows, debt_supply);
+        };
+        (_amount, _repay_share)
     }
 
     public entry fun flash_liquidate<C>() {
@@ -398,5 +442,56 @@ module leizd::pool {
         borrow<UNI>(&account2, 100000, false);
         assert!(coin::balance<UNI>(account2_addr) == 100000, 0);
         assert!(coin::balance<ZUSD>(account2_addr) == 100000, 0);
+        assert!(debt::balance_of<UNI,Asset>(account2_addr) == 100500, 0); // 0.5% fee
+    }
+
+    #[test(owner=@leizd,account1=@0x111,account2=@0x222)]
+    public entry fun test_repay_uni(owner: signer, account1: signer, account2: signer) acquires Pool, Storage {
+        let owner_addr = signer::address_of(&owner);
+        let account1_addr = signer::address_of(&account1);
+        let account2_addr = signer::address_of(&account2);
+        account::create_account(owner_addr);
+        account::create_account(account1_addr);
+        account::create_account(account2_addr);
+        common::init_weth(&owner);
+        common::init_uni(&owner);
+        trove::initialize(&owner);
+        repository::initialize(&owner);
+        managed_coin::register<UNI>(&account1);
+        managed_coin::mint<UNI>(&owner, account1_addr, 1000000);
+        managed_coin::register<ZUSD>(&account1);
+        zusd::mint_for_test(&account1, 1000000);
+        managed_coin::register<WETH>(&account2);
+        managed_coin::mint<WETH>(&owner, account2_addr, 1000000);
+        managed_coin::register<UNI>(&account2);
+        managed_coin::register<ZUSD>(&account2);
+        
+        init_pool<WETH>(&owner);
+        init_pool<UNI>(&owner);
+
+        // Lender: 
+        // deposit ZUSD for WETH
+        // deposit UNI
+        deposit<WETH>(&account1, 800000, false, true);
+        deposit<UNI>(&account1, 800000, false, false);
+
+        // Borrower:
+        // deposit WETH
+        // borrow  ZUSD
+        deposit<WETH>(&account2, 600000, false, false);
+        borrow<WETH>(&account2, 300000, true);
+
+        // Borrower:
+        // deposit ZUSD for UNI
+        // borrow UNI
+        deposit<UNI>(&account2, 200000, false, true);
+        borrow<UNI>(&account2, 100000, false);
+        
+        // Borrower:
+        // repay UNI
+        repay<UNI>(&account2, 100000, false);
+        assert!(coin::balance<UNI>(account2_addr) == 0, 0);
+        assert!(coin::balance<ZUSD>(account2_addr) == 100000, 0);
+        assert!(debt::balance_of<UNI,Asset>(account2_addr) == 500, 0); // 0.5% fee
     }
 }
