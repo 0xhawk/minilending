@@ -27,8 +27,18 @@ module leizd::math {
                 result = result + 1;
             };
             (result as u64)
-        }
-        
+        }   
+    }
+
+    public fun to_amount(share: u128, total_amount: u128, total_shares: u128): u64 {
+        if (total_amount == 0 || total_shares == 0 ) {
+            return 0
+        };
+        let result = share * total_amount / total_shares;
+
+        // prevent rouding error
+        assert!(result != 0 || share == 0, 0);
+        (result as u64) 
     }
 
     public fun to_amount_roundup(share: u128, total_amount: u128, total_shares: u128): u64 {

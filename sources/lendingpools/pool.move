@@ -75,96 +75,99 @@ module leizd::pool {
     }
 
     fun deposit_asset<C>(account: &signer, amount: u64, is_collateral_only: bool) acquires Pool, Storage {
-        accrue_interest_asset<C>();
-
-        let asset_storage_ref = borrow_global_mut<Storage<C,Asset>>(@leizd);
+        let storage_ref = borrow_global_mut<Storage<C,Asset>>(@leizd);
         let pool_ref = borrow_global_mut<Pool<C>>(@leizd);
+
+        accrue_interest<C,Asset>(storage_ref);
 
         let withdrawn = coin::withdraw<C>(account, amount);
         coin::merge(&mut pool_ref.asset, withdrawn);
-        deposit_internal<C,Asset>(account, amount, is_collateral_only, asset_storage_ref);
+        deposit_internal<C,Asset>(account, amount, is_collateral_only, storage_ref);
     }
 
     fun deposit_shadow<C>(account: &signer, amount: u64, is_collateral_only: bool) acquires Pool, Storage {
-        let asset_storage_ref = borrow_global_mut<Storage<C,Shadow>>(@leizd);
+        let storage_ref = borrow_global_mut<Storage<C,Shadow>>(@leizd);
         let pool_ref = borrow_global_mut<Pool<C>>(@leizd);
+
+        accrue_interest<C,Shadow>(storage_ref);
 
         let withdrawn = coin::withdraw<ZUSD>(account, amount);
         coin::merge(&mut pool_ref.shadow, withdrawn);
-        deposit_internal<C,Shadow>(account, amount, is_collateral_only, asset_storage_ref);
+        deposit_internal<C,Shadow>(account, amount, is_collateral_only, storage_ref);
     }
 
-    fun deposit_internal<C,P>(account: &signer, amount: u64, is_collateral_only: bool, asset_storage_ref: &mut Storage<C,P>) {
+    fun deposit_internal<C,P>(account: &signer, amount: u64, is_collateral_only: bool, storage_ref: &mut Storage<C,P>) {
         let collateral_share;
         if (is_collateral_only) {
             collateral_share = math::to_share(
                 (amount as u128),
-                asset_storage_ref.total_collateral_only_deposits,
+                storage_ref.total_collateral_only_deposits,
                 collateral_only::supply<C,P>()
             );
-            asset_storage_ref.total_collateral_only_deposits = asset_storage_ref.total_deposits + (amount as u128);
+            storage_ref.total_collateral_only_deposits = storage_ref.total_deposits + (amount as u128);
             collateral_only::mint<C,P>(account, collateral_share); 
         } else {
             collateral_share = math::to_share(
                 (amount as u128),
-                asset_storage_ref.total_deposits,
+                storage_ref.total_deposits,
                 collateral::supply<C,P>()
             );
-            asset_storage_ref.total_deposits = asset_storage_ref.total_deposits + (amount as u128);
+            storage_ref.total_deposits = storage_ref.total_deposits + (amount as u128);
             collateral::mint<C,P>(account, collateral_share);
         };
     }
 
     fun withdraw_asset<C>(account: &signer, amount: u64, is_collateral_only: bool) acquires Pool, Storage {
         let pool_ref = borrow_global_mut<Pool<C>>(@leizd);
-        let asset_storage_ref = borrow_global_mut<Storage<C,Asset>>(@leizd);
+        let storage_ref = borrow_global_mut<Storage<C,Asset>>(@leizd);
+
+        accrue_interest<C,Asset>(storage_ref);
 
         let deposited = coin::extract(&mut pool_ref.asset, amount);
         coin::deposit<C>(signer::address_of(account), deposited);
-        withdraw_internal<C,Asset>(account, amount, is_collateral_only, asset_storage_ref);
+        withdraw_internal<C,Asset>(account, amount, is_collateral_only, storage_ref);
     }
 
     fun withdraw_shadow<C>(account: &signer, amount: u64, is_collateral_only: bool) acquires Pool, Storage { 
         let pool_ref = borrow_global_mut<Pool<C>>(@leizd);
-        let asset_storage_ref = borrow_global_mut<Storage<C,Shadow>>(@leizd);
+        let storage_ref = borrow_global_mut<Storage<C,Shadow>>(@leizd);
+
+        accrue_interest<C,Shadow>(storage_ref);
 
         let deposited = coin::extract(&mut pool_ref.shadow, amount);
         coin::deposit<ZUSD>(signer::address_of(account), deposited);
-        withdraw_internal<C,Shadow>(account, amount, is_collateral_only, asset_storage_ref);
+        withdraw_internal<C,Shadow>(account, amount, is_collateral_only, storage_ref);
     }
 
-    fun withdraw_internal<C,P>(account: &signer, amount: u64, is_collateral_only: bool, asset_storage_ref: &mut Storage<C,P>): (u64, u64) {
+    fun withdraw_internal<C,P>(account: &signer, amount: u64, is_collateral_only: bool, storage_ref: &mut Storage<C,P>) {
         let account_addr = signer::address_of(account);
-        // TODO: accrue interest
-
         let burned_share;
         let withdrawn_amount;
         if (amount == U64_MAX) {
             burned_share = collateral_balance<C,P>(account_addr, is_collateral_only);
-            withdrawn_amount = 0; // TODO
+            withdrawn_amount = math::to_amount((burned_share as u128), storage_ref.total_deposits, collateral_supply<C,P>(is_collateral_only));
         } else {
-            burned_share = collateral_balance<C,P>(account_addr, is_collateral_only);
+            burned_share = math::to_share_roundup((amount as u128), storage_ref.total_deposits, collateral_supply<C,P>(is_collateral_only));
             withdrawn_amount = amount;
         };
 
         if (is_collateral_only) {
-            asset_storage_ref.total_collateral_only_deposits = asset_storage_ref.total_collateral_only_deposits - (withdrawn_amount as u128);
+            storage_ref.total_collateral_only_deposits = storage_ref.total_collateral_only_deposits - (withdrawn_amount as u128);
             collateral_only::burn<C,P>(account, burned_share);
         } else {
-            asset_storage_ref.total_deposits = asset_storage_ref.total_deposits - (withdrawn_amount as u128);
+            storage_ref.total_deposits = storage_ref.total_deposits - (withdrawn_amount as u128);
             collateral::burn<C,P>(account, burned_share);
         };
-
         // TODO is solvent
-
-        (burned_share, withdrawn_amount)
     }
 
 
     fun borrow_asset<C>(account: &signer, amount: u64) acquires Pool, Storage {
         let account_addr = signer::address_of(account);
         let pool_ref = borrow_global_mut<Pool<C>>(@leizd);
-        let asset_storage_ref = borrow_global_mut<Storage<C,Asset>>(@leizd);
+        let storage_ref = borrow_global_mut<Storage<C,Asset>>(@leizd);
+
+        accrue_interest<C,Asset>(storage_ref);
 
         let entry_fee = repository::entry_fee();
         let fee = (((amount as u128) * entry_fee / DECIMAL_PRECISION) as u64);
@@ -173,13 +176,15 @@ module leizd::pool {
 
         let deposited = coin::extract(&mut pool_ref.asset, amount);
         coin::deposit<C>(account_addr, deposited);
-        borrow_internal<C,Asset>(account, amount, fee, asset_storage_ref);
+        borrow_internal<C,Asset>(account, amount, fee, storage_ref);
     }
 
     fun borrow_shadow<C>(account: &signer, amount: u64) acquires Pool, Storage {
         let account_addr = signer::address_of(account);
         let pool_ref = borrow_global_mut<Pool<C>>(@leizd);
-        let asset_storage_ref = borrow_global_mut<Storage<C,Shadow>>(@leizd);
+        let storage_ref = borrow_global_mut<Storage<C,Shadow>>(@leizd);
+
+        accrue_interest<C,Shadow>(storage_ref);
 
         let entry_fee = repository::entry_fee();
         let fee = (((amount as u128) * entry_fee / DECIMAL_PRECISION) as u64);
@@ -188,46 +193,46 @@ module leizd::pool {
 
         let deposited = coin::extract(&mut pool_ref.shadow, amount);
         coin::deposit<ZUSD>(account_addr, deposited);
-        borrow_internal<C,Shadow>(account, amount, fee, asset_storage_ref);
+        borrow_internal<C,Shadow>(account, amount, fee, storage_ref);
     }
 
 
-    fun borrow_internal<C,P>(account: &signer, amount: u64, fee: u64, asset_storage_ref: &mut Storage<C,P>) {
-        // TODO: accrue interest
+    fun borrow_internal<C,P>(account: &signer, amount: u64, fee: u64, storage_ref: &mut Storage<C,P>) {
         // TODO: validate borrow possible liquidity check
-
-        let debt_share = math::to_share_roundup(((amount + fee) as u128), asset_storage_ref.total_borrows, debt::supply<C,P>());
-        asset_storage_ref.total_borrows = asset_storage_ref.total_borrows + (amount as u128) + (fee as u128);
+        let debt_share = math::to_share_roundup(((amount + fee) as u128), storage_ref.total_borrows, debt::supply<C,P>());
+        storage_ref.total_borrows = storage_ref.total_borrows + (amount as u128) + (fee as u128);
         debt::mint<C,P>(account, debt_share);
     }
 
     fun repay_asset<C>(account: &signer, amount: u64) acquires Pool, Storage {
-        // TODO: accrue interest
         let account_addr = signer::address_of(account);
         let pool_ref = borrow_global_mut<Pool<C>>(@leizd);
-        let asset_storage_ref = borrow_global_mut<Storage<C,Asset>>(@leizd);
+        let storage_ref = borrow_global_mut<Storage<C,Asset>>(@leizd);
 
-        let (repaid_amount, repaid_share) = calc_debt_amount_and_share<C,Asset>(account_addr, asset_storage_ref.total_borrows, amount);
+        accrue_interest<C,Asset>(storage_ref);
+
+        let (repaid_amount, repaid_share) = calc_debt_amount_and_share<C,Asset>(account_addr, storage_ref.total_borrows, amount);
 
         let withdrawn = coin::withdraw<C>(account, repaid_amount);
         coin::merge(&mut pool_ref.asset, withdrawn);
 
-        asset_storage_ref.total_borrows = asset_storage_ref.total_borrows - (repaid_amount as u128);
+        storage_ref.total_borrows = storage_ref.total_borrows - (repaid_amount as u128);
         debt::burn<C,Asset>(account, repaid_share);
     }
 
     fun repay_shadow<C>(account: &signer, amount: u64) acquires Pool, Storage {
-        // TODO: accrue interest
         let account_addr = signer::address_of(account);
-        let asset_storage_ref = borrow_global_mut<Storage<C,Shadow>>(@leizd);
+        let storage_ref = borrow_global_mut<Storage<C,Shadow>>(@leizd);
         let pool_ref = borrow_global_mut<Pool<C>>(@leizd);
 
-        let (repaid_amount, repaid_share) = calc_debt_amount_and_share<C,Shadow>(account_addr, asset_storage_ref.total_borrows, amount);
+        accrue_interest<C,Shadow>(storage_ref);
+
+        let (repaid_amount, repaid_share) = calc_debt_amount_and_share<C,Shadow>(account_addr, storage_ref.total_borrows, amount);
 
         let withdrawn = coin::withdraw<ZUSD>(account, repaid_amount);
         coin::merge(&mut pool_ref.shadow, withdrawn);
 
-        asset_storage_ref.total_borrows = asset_storage_ref.total_borrows - (repaid_amount as u128);
+        storage_ref.total_borrows = storage_ref.total_borrows - (repaid_amount as u128);
         debt::burn<C,Shadow>(account, repaid_share);
     }
 
@@ -257,9 +262,7 @@ module leizd::pool {
         // TODO
     }
 
-    fun accrue_interest_asset<C>() acquires Storage {
-        let storage_ref = borrow_global_mut<Storage<C,Asset>>(@leizd);
-
+    fun accrue_interest<C,P>(storage_ref: &mut Storage<C,P>) {
         let now = timestamp::now_microseconds();
         let protocol_share_fee = repository::protocol_share_fee();
         let rcomp = interest_rate::update_interest_rate<C>(
@@ -293,6 +296,14 @@ module leizd::pool {
             collateral_only::balance_of<C,P>(account_addr)
         } else {
             collateral::balance_of<C,P>(account_addr)
+        }
+    }
+
+    fun collateral_supply<C,P>(is_collateral_only: bool): u128 {
+        if (is_collateral_only) {
+            collateral_only::supply<C,P>()
+        } else {
+            collateral::supply<C,P>()
         }
     }
 
@@ -537,6 +548,6 @@ module leizd::pool {
         repay<UNI>(&account2, 100000, false);
         assert!(coin::balance<UNI>(account2_addr) == 0, 0);
         assert!(coin::balance<ZUSD>(account2_addr) == 100000, 0);
-        assert!(debt::balance_of<UNI,Asset>(account2_addr) == 500, 0); // 0.5% fee
+        assert!(debt::balance_of<UNI,Asset>(account2_addr) == 700, 0); // 0.5% entry fee + 0.2% interest
     }
 }
