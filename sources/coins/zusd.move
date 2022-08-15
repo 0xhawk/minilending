@@ -49,7 +49,7 @@ module leizd::zusd {
         coin::burn(coin_burned, &caps.burn_cap);
     }
 
-    public fun balance(owner: address): u64 {
+    public entry fun balance(owner: address): u64 {
         coin::balance<ZUSD>(owner)
     }
 

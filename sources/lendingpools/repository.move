@@ -31,14 +31,14 @@ module leizd::repository {
         });
     }
 
-    public fun new_asset<C>(owner: &signer) {
+    public entry fun new_asset<C>(owner: &signer) {
         move_to(owner, AssetConfig<C> {
             ltv: DEFAULT_LTV,
             threshold: DEFAULT_THRESHOLD,
         });
     }
 
-    public fun set_fees(owner: &signer, fees: Fees) acquires Fees {
+    public entry fun set_fees(owner: &signer, fees: Fees) acquires Fees {
         assert!(signer::address_of(owner) == @leizd, 0);
 
         let _fees = borrow_global_mut<Fees>(@leizd);
@@ -47,15 +47,15 @@ module leizd::repository {
         _fees.liquidation_fee = fees.liquidation_fee;
     }
 
-    public fun set_asset_config() {
+    public entry fun set_asset_config() {
         // TODO
     }
 
-    public fun entry_fee(): u128 acquires Fees {
+    public entry  fun entry_fee(): u128 acquires Fees {
         borrow_global<Fees>(@leizd).entry_fee
     }
 
-    public fun protocol_share_fee(): u128 acquires Fees {
+    public entry fun protocol_share_fee(): u128 acquires Fees {
         borrow_global<Fees>(@leizd).protocol_share_fee
     }
 }

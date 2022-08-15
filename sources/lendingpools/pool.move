@@ -307,19 +307,19 @@ module leizd::pool {
         }
     }
 
-    public fun total_deposits<C,P>(): u128 acquires Storage {
+    public entry fun total_deposits<C,P>(): u128 acquires Storage {
         borrow_global<Storage<C,P>>(@leizd).total_deposits
     }
 
-    public fun total_conly_deposits<C,P>(): u128 acquires Storage {
+    public entry fun total_conly_deposits<C,P>(): u128 acquires Storage {
         borrow_global<Storage<C,P>>(@leizd).total_collateral_only_deposits
     }
 
-    public fun total_borrows<C,P>(): u128 acquires Storage {
+    public entry fun total_borrows<C,P>(): u128 acquires Storage {
         borrow_global<Storage<C,P>>(@leizd).total_borrows
     }
 
-    public fun last_updated<C,P>(): u64 acquires Storage {
+    public entry fun last_updated<C,P>(): u64 acquires Storage {
         borrow_global<Storage<C,P>>(@leizd).last_updated
     }
 

@@ -2,6 +2,8 @@ module leizd::interest_rate {
 
     use leizd::math;
 
+    friend leizd::pool;
+
     const DECIMAL_PRECISION: u64 = 1000000000000000000;
 
     /// X_MAX = ln(RCOMP_MAX + 1)
@@ -20,7 +22,7 @@ module leizd::interest_rate {
         t_crit: u64
     }
 
-    public fun initialize<C>(owner: &signer) {
+    public(friend) entry fun initialize<C>(owner: &signer) {
         move_to(owner, default_config<C>());
     }
     
@@ -39,7 +41,7 @@ module leizd::interest_rate {
         }
     }
 
-    public fun update_interest_rate<C>(now: u64, total_deposits: u128, total_borrows: u128, last_updated: u64): u64 acquires Config {
+    public(friend) fun update_interest_rate<C>(now: u64, total_deposits: u128, total_borrows: u128, last_updated: u64): u64 acquires Config {
         let config_ref = borrow_global_mut<Config<C>>(@leizd);
         let (rcomp,_,_,_) = calc_compound_interest_rate<C>(config_ref, total_deposits, total_borrows, last_updated, now);
         rcomp

@@ -67,11 +67,11 @@ module leizd::collateral {
         coin::burn(coin_burned, &caps.burn_cap);
     }
 
-    public fun balance_of<C,P>(addr: address): u64 {
+    public entry fun balance_of<C,P>(addr: address): u64 {
         coin::balance<Collateral<C,P>>(addr)
     }
 
-    public fun supply<C,P>(): u128 {
+    public entry fun supply<C,P>(): u128 {
         let _supply = coin::supply<Collateral<C,P>>();
         if (option::is_some(&_supply)) {
             *option::borrow<u128>(&_supply)

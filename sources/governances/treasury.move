@@ -19,12 +19,12 @@ module leizd::treasury {
         });
     }
 
-    public fun collect_asset_fee<C>(coin: coin::Coin<C>) acquires Treasury {
+    public(friend) fun collect_asset_fee<C>(coin: coin::Coin<C>) acquires Treasury {
         let treasury_ref = borrow_global_mut<Treasury<C>>(@leizd);
         coin::merge<C>(&mut treasury_ref.asset, coin);
     }
 
-    public fun collect_shadow_fee<C>(coin: coin::Coin<ZUSD>) acquires Treasury {
+    public(friend) fun collect_shadow_fee<C>(coin: coin::Coin<ZUSD>) acquires Treasury {
         let treasury_ref = borrow_global_mut<Treasury<C>>(@leizd);
         coin::merge<ZUSD>(&mut treasury_ref.shadow, coin);
     }

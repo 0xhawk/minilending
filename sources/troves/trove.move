@@ -11,7 +11,7 @@ module leizd::trove {
         zusd::initialize(owner);
     }
 
-    public fun open_trove<C>(account: &signer, amount: u64) {
+    public entry fun open_trove<C>(account: &signer, amount: u64) {
 
         // TODO: active pool -> increate ZUSD debt
         zusd::mint(account, amount);
